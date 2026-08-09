@@ -94,10 +94,11 @@ func Load() (*Config, error) {
 
 	switch mode {
 	case "docker":
-		// Integrated image: isolated home + projects under /data.
-		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "/data/projects")
-		cfg.ClaudeHome = firstEnv("CLAUDE_HOME", "HOME_DIR", "/data/home")
-		cfg.InheritUserEnv = false
+		// Image defaults: browse /data, home is process HOME (/home/claude).
+		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "/data")
+		// Optional override; empty → inherit container HOME (settings at ~/.claude).
+		cfg.ClaudeHome = firstEnv("CLAUDE_HOME", "HOME_DIR", "")
+		cfg.InheritUserEnv = cfg.ClaudeHome == ""
 	default: // native / wsl / host / custom / explicit env
 		home, _ := os.UserHomeDir()
 		// Default project browser root: user home (~/).

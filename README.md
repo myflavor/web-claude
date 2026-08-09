@@ -44,8 +44,9 @@ NAS Docker:
   手机浏览器 → :3080 → container
                          → web-claude
                          → spawn 镜像内 claude
-                         → HOME=/data/home  (volume)
-                              └── .claude/settings.json   ← 你挂进去的配置
+                         → HOME=/home/claude
+                              └── .claude/settings.json  ← 挂载 ./settings.json
+                         → WEB_CLAUDE_ROOT=/data         ← 挂载 ./data
 ```
 
 ---
@@ -88,73 +89,32 @@ env 里的 `ANTHROPIC_*` 若设置了，会覆盖进子进程（便于临时改�
 
 ---
 
-## 方式 B：Docker（NAS 图方便）
-
-镜像内已安装 Claude Code。你要准备的是：
-
-1. **项目代码目录** → `/data/projects`
-2. **Claude 家目录** → `/data/home`（里面放 `.claude/`）
+## 方式 B：Docker
 
 ```bash
-cp .env.example .env
-# 必填: WEB_CLAUDE_TOKEN
-# 填 API: ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_MODEL ...
-
-# 准备 Claude 配置（二选一）
-
-# 1) 专用目录
-mkdir -p data/home/.claude data/projects
-cat > data/home/.claude/settings.json <<'EOF'
-{
-  "permissions": {
-    "deny": ["WebSearch", "WebFetch"]
-  },
-  "model": "your-model-id"
-}
-EOF
-
-# 2) 或直接挂真实 home / 真实 .claude 父目录
-# CLAUDE_HOME_HOST_PATH=/volume1/docker/claude-home
-
+cp .env.example .env          # 填 WEB_CLAUDE_TOKEN
+cp settings.json.example settings.json   # 按需改 Claude 配置
+mkdir -p data
 docker compose up -d --build
 ```
 
-`docker-compose.yml` 关键挂载：
+挂载约定：
 
-```yaml
-volumes:
-  - ${PROJECTS_HOST_PATH}:/data/projects
-  - ${CLAUDE_HOME_HOST_PATH}:/data/home   # 容器 HOME
-```
+| 宿主机 | 容器 |
+|--------|------|
+| `./data` | `/data`（项目根，`WEB_CLAUDE_ROOT`） |
+| `./settings.json` | `/home/claude/.claude/settings.json` |
 
-容器内 `HOME=/data/home`，因此 Claude 读的是：
+只需 `WEB_CLAUDE_TOKEN`；可选 `WEB_CLAUDE_PORT` 改宿主端口。
 
-```text
-/data/home/.claude/settings.json
-/data/home/.claude/projects/...
-```
-
-**等价于「把 `.claude` 挂进去」**——更准确说是挂 **包含 `.claude` 的 HOME**，这样会话记录、plugins、settings 都在一处。
-
-若你只想挂 settings 文件：
-
-```yaml
-# 进阶：只覆盖配置文件（一般不推荐，会话数据仍在 home 里）
-- ./settings.json:/data/home/.claude/settings.json:ro
-```
-
-API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings.json`（你现在的用法也是 env + settings 分工）。
-
----
 
 ## 配置对照
 
 | 变量 | 独立运行 | Docker |
 |------|----------|--------|
 | `WEB_CLAUDE_TOKEN` | 网页密码（首选） | 网页密码 |
-| `WEB_CLAUDE_ROOT` | 可浏览的代码根（默认 `~`） | 容器内 `/data/projects` |
+| `WEB_CLAUDE_ROOT` | 可浏览的代码根（默认 `~`） | 容器内 `/data` |
 | `WEB_CLAUDE_PORT` | 监听端口（默认 `3080`） | compose 宿主映射端口 |
-| `CLAUDE_HOME` / `HOME_DIR` | **通常留空**（用真实 HOME） | `/data/home` |
 | `ANTHROPIC_*` | 可选（已有 settings/env 可省略） | 常用，注入自定义网关 |
 | `CLAUDE_BIN` | 默认 PATH 里的 `claude` | 镜像内 `claude` |
 | `RUN_MODE` | `native` / `auto` | compose 设 `docker` |
@@ -230,8 +190,8 @@ Docker：
 ```bash
 docker run --rm -p 3080:3080 \
   -e WEB_CLAUDE_TOKEN='你的密码' \
-  -v "$PWD/projects:/data/projects" \
-  -v "$PWD/home:/data/home" \
+  -v "$PWD/data:/data" \
+  -v "$PWD/settings.json:/home/claude/.claude/settings.json:ro" \
   ghcr.io/myflavor/web-claude:latest
 ```
 

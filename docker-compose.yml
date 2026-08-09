@@ -1,31 +1,13 @@
 services:
-  claude-mobile:
+  web-claude:
     build: .
     ports:
-      - "${WEB_CLAUDE_PORT:-3080}:3080"
+      - "3080:3080"
     environment:
-      WEB_CLAUDE_TOKEN: ${WEB_CLAUDE_TOKEN:?set WEB_CLAUDE_TOKEN}
+      WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: "3080"
-      RUN_MODE: docker
-
-      WEB_CLAUDE_ROOT: /data/projects
-      # Isolated home inside container → ~/.claude lives here
-      CLAUDE_HOME: /data/home
-      HOME_DIR: /data/home
-
-      # Forward your custom API / model settings
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
-      ANTHROPIC_DEFAULT_SONNET_MODEL: ${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
-      ANTHROPIC_DEFAULT_OPUS_MODEL: ${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}
-
-      CLAUDE_ARGS: ${CLAUDE_ARGS:-}
-      IDLE_TTL_HOURS: ${IDLE_TTL_HOURS:-24}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      WEB_CLAUDE_ROOT: /data
     volumes:
-      - ${PROJECTS_HOST_PATH:-./data/projects}:/data/projects
-      - ${CLAUDE_HOME_HOST_PATH:-${HOME_HOST_PATH:-./data/home}}:/data/home
+      - ./data:/data
+      - ./settings.json:/home/claude/.claude/settings.json:ro
     restart: unless-stopped

@@ -29,7 +29,6 @@ FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Minimal base so install.sh / git work over HTTPS.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       curl \
@@ -37,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
     && rm -rf /var/lib/apt/lists/*
 
-# Official Claude Code installer → put real binary on system PATH (not a root-only symlink).
+# Official Claude Code installer → real binary on PATH.
 RUN set -eux; \
     curl -fsSL https://claude.ai/install.sh | bash; \
     CLAUDE_SRC=""; \
@@ -53,18 +52,16 @@ RUN set -eux; \
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 
 RUN useradd -m -u 1000 -s /bin/bash claude \
-    && mkdir -p /data/projects /data/home \
-    && chown -R claude:claude /data
+    && mkdir -p /data /home/claude/.claude \
+    && chown -R claude:claude /data /home/claude
 
-ENV HOME=/data/home \
-    WEB_CLAUDE_ROOT=/data/projects \
-    CLAUDE_HOME=/data/home \
-    HOME_DIR=/data/home \
+ENV HOME=/home/claude \
+    WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
     RUN_MODE=docker
 
 USER claude
-WORKDIR /data/projects
+WORKDIR /data
 EXPOSE 3080
 
 ENTRYPOINT ["web-claude"]

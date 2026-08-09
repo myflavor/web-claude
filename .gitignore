@@ -1,8 +1,10 @@
 # runtime / secrets
 data/
 .env
+settings.json
 *.exe
 /claude-mobile
+/web-claude
 /bin/
 
 # frontend
