@@ -25,7 +25,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -o /out/web-claude ./cmd/server
 
 # —— Runtime: Debian + git + Claude Code ——
-# Any uid can run (compose user: "uid:gid" on NAS). No PUID entrypoint.
+# Non-root sandbox with passwordless sudo (can apt install).
+# PUID/PGID remap for NAS volume ownership.
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -35,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       bash \
       git \
+      gosu \
+      sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code onto system PATH (build as root).
@@ -51,21 +54,26 @@ RUN set -eux; \
     claude --version
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-# Default identity uid 1000. HOME must be writable by *any* runtime uid
-# (NAS: user: "1002:10") so transcripts work without remapping users.
 RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
     && mkdir -p /data /home/sandbox/.claude \
-    && chown -R sandbox:sandbox /home/sandbox /data \
-    && chmod -R a+rwX /home/sandbox /data
+    && chown -R sandbox:sandbox /data /home/sandbox \
+    && echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox \
+    && chmod 0440 /etc/sudoers.d/sandbox
 
 ENV HOME=/home/sandbox \
     WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
-    RUN_MODE=docker
+    RUN_MODE=docker \
+    PUID=1000 \
+    PGID=1000
 
-USER 1000
+# Entrypoint starts as root to apply PUID/PGID, then gosu → sandbox.
+USER root
 WORKDIR /data
 EXPOSE 3080
 
-ENTRYPOINT ["web-claude"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["web-claude"]

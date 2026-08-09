@@ -59,11 +59,12 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
+      # NAS：对齐共享属主（ls -ln）。本机默认 1000 即可。
+      PUID: 1000
+      PGID: 1000
     volumes:
       - ./data:/data
       - ./settings.json:/home/sandbox/.claude/settings.json
-    # NAS：写共享目录属主（ls -ln / id 用户）。本机默认 1000 可省略。
-    # user: "1002:10"
     restart: unless-stopped
 ```
 
@@ -75,48 +76,41 @@ docker compose pull
 docker compose up -d
 ```
 
-### 本机 / 非 NAS
+### 身份与装软件
 
-一般**不用**写 `user:`。镜像默认以 uid **1000** 运行。
+- 业务进程：**非 root** 用户 `sandbox`（可用 `PUID`/`PGID` 改成 NAS 属主）
+- `HOME=/home/sandbox`
+- **免密 sudo**：容器里可装系统包，例如：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 build-essential
+```
+
+Claude 会话里让它用 `sudo` 安装即可。
+
+**不要**写 compose `user:`（会跳过入口，sudo/HOME 容易坏）。
 
 ### NAS
 
-1. 查属主：
-
 ```bash
-ls -ln data settings.json
-# 或
-id 你的用户名
+ls -ln data settings.json   # 记下 uid:gid
+# compose 里：
+#   PUID: 1002
+#   PGID: 10
+docker compose pull && docker compose up -d
 ```
 
-2. 在 compose 里打开一行，例如：
-
-```yaml
-user: "1002:10"
-```
-
-3. **不要**再设 `PUID`/`PGID`（已废弃）。  
-4. `settings.json` 必须是文件；不要加 `:ro`。
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-挂载：
+### 挂载
 
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
 | `./settings.json` | `/home/sandbox/.claude/settings.json` | Claude 配置 |
 
-镜像约定：
+`settings.json` 必须是文件；不要加 `:ro`。
 
-- **非 root**（默认 uid 1000；可用 compose `user:` 换成任意 uid）
-- `HOME=/home/sandbox`（目录对任意 uid 可写，用于 transcript）
-- Claude 配置：`/home/sandbox/.claude`
-- 程序：`/usr/local/bin/claude`、`/usr/local/bin/web-claude`
-- 预装：**git** + **Claude Code** only
+镜像预装：**git** + **Claude Code**；其余用 `sudo apt` 按需装。
 
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 
@@ -129,6 +123,8 @@ docker compose up -d
 | `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填（Compose 示例为 `password`） |
 | `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 可浏览的项目根 | 二进制：用户家目录；Docker：`/data` |
+| `PUID` | 业务进程 uid（NAS 对齐共享属主） | `1000` |
+| `PGID` | 业务进程 gid | `1000` |
 
 Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `ANTHROPIC_*` 环境变量）。
 
@@ -137,11 +133,11 @@ Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `A
 ## 发版
 
 ```bash
-git tag v0.1.6
-git push origin v0.1.6
+git tag v0.1.7
+git push origin v0.1.7
 ```
 
 自动发布：
 
 1. GitHub Release：多平台 `web-claude` 二进制  
-2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.6`
+2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.7`

@@ -7,9 +7,10 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
+      # NAS：与共享目录属主一致（ls -ln）。本机可省略或保持 1000。
+      PUID: 1000
+      PGID: 1000
     volumes:
       - ./data:/data
       - ./settings.json:/home/sandbox/.claude/settings.json
-    # NAS：对齐共享目录属主（ls -ln）。本机 uid 1000 可整行删掉。
-    # user: "1002:10"
     restart: unless-stopped
