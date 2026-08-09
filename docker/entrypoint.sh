@@ -1,45 +1,44 @@
 #!/bin/bash
 set -euo pipefail
 
+# NAS-friendly: run as numeric PUID:PGID without usermod/groupmod.
+# HOME stays /home/sandbox so .profile/.bashrc and ~/.claude paths stay stable.
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
 if [ "$(id -u)" -eq 0 ]; then
-  if getent group sandbox >/dev/null 2>&1; then
-    groupmod -o -g "$PGID" sandbox 2>/dev/null || true
-  else
-    groupadd -o -g "$PGID" sandbox
-  fi
-  if id sandbox >/dev/null 2>&1; then
-    usermod -o -u "$PUID" -g "$PGID" -d /home/sandbox sandbox 2>/dev/null || true
-  else
-    useradd -o -u "$PUID" -g "$PGID" -d /home/sandbox -s /bin/bash -m sandbox
-  fi
+  mkdir -p /home/sandbox /home/sandbox/.claude /home/sandbox/.local/bin /data
 
-  # Ensure shell rc exist (image already has them; recreate if volume wiped home bits).
-  mkdir -p /home/sandbox/.claude /home/sandbox/.local/bin /data
-  if [ ! -e /home/sandbox/.profile ]; then
-    touch /home/sandbox/.profile
-  fi
-  if [ ! -e /home/sandbox/.bashrc ]; then
-    touch /home/sandbox/.bashrc
-  fi
-  chown -R sandbox:sandbox /home/sandbox 2>/dev/null || true
-  chown sandbox:sandbox /home/sandbox/.claude 2>/dev/null || true
-  chown sandbox:sandbox /data 2>/dev/null || true
+  # Shell rc must exist for bash -lc (sessions load these).
+  [ -f /home/sandbox/.profile ] || printf '%s\n' \
+    'export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"' \
+    > /home/sandbox/.profile
+  [ -f /home/sandbox/.bashrc ] || printf '%s\n' \
+    'export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"' \
+    > /home/sandbox/.bashrc
 
-  echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox
-  chmod 0440 /etc/sudoers.d/sandbox
+  # Fix ownership for this uid/gid (no /etc/passwd rewrite).
+  chown -R "${PUID}:${PGID}" /home/sandbox 2>/dev/null || true
+  chown "${PUID}:${PGID}" /data 2>/dev/null || true
+
+  # Passwordless sudo for this numeric uid (apt install in session).
+  echo "Defaults:#!requiretty" >/etc/sudoers.d/web-claude-notty 2>/dev/null || true
+  echo "# web-claude runtime" >/etc/sudoers.d/web-claude-puid
+  echo "User_Alias WEBCLAUDE = #${PUID}" >>/etc/sudoers.d/web-claude-puid
+  echo "WEBCLAUDE ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers.d/web-claude-puid
+  chmod 0440 /etc/sudoers.d/web-claude-puid
 
   export HOME=/home/sandbox
-  export USER=sandbox
-  export PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+  export USER="${USER:-sandbox}"
+  # Base PATH for Go (web-claude); sessions still re-load profile via bash -lc.
+  export PATH="/usr/local/bin:/usr/bin:/bin${PATH:+:$PATH}"
   cd /data 2>/dev/null || cd /home/sandbox
-  exec gosu sandbox env HOME=/home/sandbox USER=sandbox \
-    PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}" \
+
+  exec gosu "${PUID}:${PGID}" env HOME=/home/sandbox \
+    PATH="/usr/local/bin:/usr/bin:/bin" \
     "$@"
 fi
 
 export HOME="${HOME:-/home/sandbox}"
-export PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+export PATH="/usr/local/bin:/usr/bin:/bin${PATH:+:$PATH}"
 exec "$@"

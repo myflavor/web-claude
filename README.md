@@ -10,34 +10,22 @@ Compose 默认登录密码：`password`
 
 ## 方式一：单二进制
 
-从 [Releases](https://github.com/myflavor/web-claude/releases) 下载对应平台文件，例如：
-
-- Linux amd64：`web-claude_vX.Y.Z_linux_amd64`
-- macOS arm64：`web-claude_vX.Y.Z_darwin_arm64`
-- Windows：`web-claude_vX.Y.Z_windows_amd64.exe`
+从 [Releases](https://github.com/myflavor/web-claude/releases) 下载对应平台文件。
 
 ```bash
 chmod +x web-claude_vX.Y.Z_linux_amd64
 export WEB_CLAUDE_TOKEN=password
-# 可选：
-# export WEB_CLAUDE_PORT=3080
-# export WEB_CLAUDE_ROOT=$HOME
 ./web-claude_vX.Y.Z_linux_amd64
 ```
 
-浏览器打开 `http://127.0.0.1:3080`，用 `WEB_CLAUDE_TOKEN` 登录。
-
-本机需已安装 `claude` 与 `git`（从 **PATH** 查找）。
+本机 PATH 上需有 `claude`、`git`。会话经 login shell 启动，会读你的 `~/.profile` / `~/.bashrc`。
 
 ---
 
 ## 方式二：Docker Compose
 
-准备：
-
 ```bash
 mkdir -p data claude
-# 可选配置
 cat > claude/settings.json <<'JSON'
 {
   "permissions": {
@@ -46,8 +34,6 @@ cat > claude/settings.json <<'JSON'
 }
 JSON
 ```
-
-`docker-compose.yml`：
 
 ```yaml
 services:
@@ -72,42 +58,57 @@ docker compose pull
 docker compose up -d
 ```
 
-### 挂载（不要挂整个 home）
+### 设计（稳）
 
-| 宿主机 | 容器 | 用途 |
-|--------|------|------|
-| `./data` | `/data` | 项目目录 |
-| `./claude` | `/home/sandbox/.claude` | settings、会话 transcript |
+| 目标 | 做法 |
+|------|------|
+| Claude 读得到 profile/bashrc | 会话用 **`bash -lc`**（login shell） |
+| NAS 方便 | **`PUID`/`PGID`**：直接以该数字 uid 运行，**不 usermod** |
+| Go 找得到 claude/git | 固定在 **`/usr/local/bin`** 与系统 PATH |
+| 会话不丢 | 只挂 **`./claude` → `/home/sandbox/.claude`**（不挂整个 home） |
 
-镜像内已有（**不挂载**）：
+镜像构建时：
 
-- `/home/sandbox/.profile`、`.bashrc`（装 Claude **之前**创建，install.sh 会往里写 PATH）
-- `/home/sandbox/.local`（Claude 安装位置）
-- `/usr/local/bin/claude`（固定一份，供 Go 从 PATH 启动）
-- 系统 `git`
+1. 在 `/home/sandbox` 先建好 `.profile` / `.bashrc`
+2. 用 sandbox 装 Claude（可写进 profile）
+3. 再把 `claude` 拷到 `/usr/local/bin`
 
-### 进程怎么找命令
+启动时 entrypoint：
 
-- **Go / web-claude**：`PATH` 里找 `claude`、`git`
-- **会话**：`bash -lc`，会加载 `~/.profile` / `~/.bashrc`（镜像里那份）
-
-### 装软件
-
-```bash
-sudo apt-get update && sudo apt-get install -y python3
-```
-
-装到系统 PATH 的工具会话里都能用。  
-（容器重建会丢 apt 包，需要的话写进自己的 Dockerfile。）
-
-**不要**写 compose `user:`。
+1. 保证 `.profile` / `.bashrc` 存在  
+2. `chown PUID:PGID` 到 home / data  
+3. `gosu PUID:PGID web-claude`（**不改** `/etc/passwd`）
 
 ### NAS
 
 ```bash
 ls -ln data claude
-# PUID/PGID 对齐属主
+# 例如 1002:10
 ```
+
+```yaml
+environment:
+  PUID: 1002
+  PGID: 10
+```
+
+**不要**写 compose `user:`。
+
+### 装软件
+
+会话里：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3
+```
+
+（按当前 `PUID` 写了免密 sudo。）
+
+| 宿主机 | 容器 |
+|--------|------|
+| `./data` | `/data` 项目 |
+| `./claude` | `/home/sandbox/.claude` 配置+会话 |
 
 ---
 
@@ -115,16 +116,16 @@ ls -ln data claude
 
 | 变量 | 说明 | 默认 |
 |------|------|------|
-| `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填 |
-| `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
-| `WEB_CLAUDE_ROOT` | 项目根 | 二进制：家目录；Docker：`/data` |
-| `PUID` / `PGID` | 业务进程 uid/gid | `1000` |
+| `WEB_CLAUDE_TOKEN` | 登录密码 | 必填 |
+| `WEB_CLAUDE_PORT` | 端口 | `3080` |
+| `WEB_CLAUDE_ROOT` | 项目根 | Docker：`/data` |
+| `PUID` / `PGID` | 进程 uid/gid（NAS） | `1000` |
 
 ---
 
 ## 发版
 
 ```bash
-git tag v0.1.11
-git push origin v0.1.11
+git tag v0.1.12
+git push origin v0.1.12
 ```
