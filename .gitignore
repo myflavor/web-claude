@@ -1,5 +1,6 @@
 # runtime / secrets
 data/
+claude/
 .env
 settings.json
 *.exe

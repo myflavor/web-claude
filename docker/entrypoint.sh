@@ -19,7 +19,9 @@ if [ "$(id -u)" -eq 0 ]; then
   fi
 
   mkdir -p /home/sandbox/.claude /data
-  chown -R sandbox:sandbox /home/sandbox || true
+  # Own home (and mounted ~/.claude volume) so transcripts persist & stay writable.
+  chown -R sandbox:sandbox /home/sandbox 2>/dev/null || true
+  chown sandbox:sandbox /home/sandbox/.claude 2>/dev/null || true
   chown sandbox:sandbox /data 2>/dev/null || true
 
   # Ensure passwordless sudo still works after uid remap.

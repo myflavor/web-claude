@@ -12,5 +12,6 @@ services:
       PGID: 1000
     volumes:
       - ./data:/data
-      - ./settings.json:/home/sandbox/.claude/settings.json
+      # 整个 Claude 配置/会话目录（重建容器不丢历史）
+      - ./claude:/home/sandbox/.claude
     restart: unless-stopped
