@@ -558,6 +558,33 @@ function ensureTerm() {
   } catch {
     /* ignore */
   }
+
+  // Browser key path ≠ native TTY. Map common shortcuts browsers swallow or
+  // mis-handle so Claude Code sees the same sequences as a local terminal.
+  term.attachCustomKeyEventHandler((ev) => {
+    if (ev.type !== "keydown") return true;
+    const ctrl = ev.ctrlKey || ev.metaKey;
+    if (!ctrl) return true;
+
+    // Ctrl/Cmd+Enter → newline (Claude multiline), not bare Enter submit.
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        // LF is what most TUI multiline handlers expect for "soft newline".
+        ws.send(new TextEncoder().encode("\n"));
+      }
+      return false;
+    }
+
+    // Let browser keep Ctrl/Cmd+V/C for clipboard; xterm still gets paste via
+    // paste events. Don't intercept those.
+    if (ev.key === "v" || ev.key === "c" || ev.key === "x" || ev.key === "a") {
+      return true;
+    }
+
+    return true;
+  });
+
   term.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(new TextEncoder().encode(data));
