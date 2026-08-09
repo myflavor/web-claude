@@ -737,12 +737,24 @@ html, body {
   padding: 2px 4px;
   background: #0b0f14;
   overflow: hidden;
+  /* Mobile: let the viewport own vertical pan (don't treat as page gesture). */
+  touch-action: pan-y;
 }
 .terminal .xterm {
   height: 100%;
   width: 100%;
+  touch-action: pan-y;
 }
-.terminal .xterm-viewport { overflow-y: auto !important; }
+.terminal .xterm-viewport {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+/* Screen layer can steal touch if not explicit. */
+.terminal .xterm-screen {
+  touch-action: pan-y;
+}
 .term-status {
   flex-shrink: 0;
   margin: 0;

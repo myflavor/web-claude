@@ -538,6 +538,9 @@ function ensureTerm() {
     },
     scrollback: 5000,
     allowProposedApi: true,
+    // Mobile: smoother scroll + don't fight browser touch scrolling as hard.
+    smoothScrollDuration: 0,
+    scrollOnUserInput: true,
   });
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
@@ -545,6 +548,16 @@ function ensureTerm() {
   // Ensure host is empty before open.
   termEl.value.innerHTML = "";
   term.open(termEl.value);
+  // Prefer viewport touch scrolling on mobile; avoid accidental text selection drag.
+  try {
+    const vp = term.element?.querySelector(".xterm-viewport");
+    if (vp) {
+      vp.style.touchAction = "pan-y";
+      vp.style.webkitOverflowScrolling = "touch";
+    }
+  } catch {
+    /* ignore */
+  }
   term.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(new TextEncoder().encode(data));
