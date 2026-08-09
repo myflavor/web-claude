@@ -94,7 +94,7 @@ func Load() (*Config, error) {
 
 	switch mode {
 	case "docker":
-		// Image defaults: browse /data, home is process HOME (/home/claude).
+		// Image defaults: browse /data, home is process HOME (/home/sandbox).
 		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "/data")
 		// Optional override; empty → inherit container HOME (settings at ~/.claude).
 		cfg.ClaudeHome = firstEnv("CLAUDE_HOME", "HOME_DIR", "")

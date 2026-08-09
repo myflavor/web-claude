@@ -112,11 +112,11 @@ Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `A
 ## 发版
 
 ```bash
-git tag v0.1.3
-git push origin v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
 自动发布：
 
 1. GitHub Release：多平台 `web-claude` 二进制  
-2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.3`
+2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.4`
