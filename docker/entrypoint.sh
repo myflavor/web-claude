@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Root only long enough to map PUID/PGID, then drop to sandbox.
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
@@ -17,8 +16,16 @@ if [ "$(id -u)" -eq 0 ]; then
     useradd -o -u "$PUID" -g "$PGID" -d /home/sandbox -s /bin/bash -m sandbox
   fi
 
-  mkdir -p /home/sandbox /home/sandbox/.claude /home/sandbox/.local/bin /data
+  # Ensure shell rc exist (image already has them; recreate if volume wiped home bits).
+  mkdir -p /home/sandbox/.claude /home/sandbox/.local/bin /data
+  if [ ! -e /home/sandbox/.profile ]; then
+    touch /home/sandbox/.profile
+  fi
+  if [ ! -e /home/sandbox/.bashrc ]; then
+    touch /home/sandbox/.bashrc
+  fi
   chown -R sandbox:sandbox /home/sandbox 2>/dev/null || true
+  chown sandbox:sandbox /home/sandbox/.claude 2>/dev/null || true
   chown sandbox:sandbox /data 2>/dev/null || true
 
   echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox
@@ -26,7 +33,6 @@ if [ "$(id -u)" -eq 0 ]; then
 
   export HOME=/home/sandbox
   export USER=sandbox
-  # System tools + user-local bins (apt / pip --user / etc).
   export PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
   cd /data 2>/dev/null || cd /home/sandbox
   exec gosu sandbox env HOME=/home/sandbox USER=sandbox \

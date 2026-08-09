@@ -27,7 +27,7 @@ export WEB_CLAUDE_TOKEN=password
 
 浏览器打开 `http://127.0.0.1:3080`，用 `WEB_CLAUDE_TOKEN` 登录。
 
-本机需已安装 `claude` 与 `git`（Go 只从 **PATH** 查找）。
+本机需已安装 `claude` 与 `git`（从 **PATH** 查找）。
 
 ---
 
@@ -36,10 +36,9 @@ export WEB_CLAUDE_TOKEN=password
 准备：
 
 ```bash
-mkdir -p data home
-# 可选：Claude 配置
-mkdir -p home/.claude
-cat > home/.claude/settings.json <<'JSON'
+mkdir -p data claude
+# 可选配置
+cat > claude/settings.json <<'JSON'
 {
   "permissions": {
     "deny": ["WebSearch", "WebFetch"]
@@ -64,8 +63,7 @@ services:
       PGID: 1000
     volumes:
       - ./data:/data
-      # 整个 home：会话、.bashrc/.profile、用户软件
-      - ./home:/home/sandbox
+      - ./claude:/home/sandbox/.claude
     restart: unless-stopped
 ```
 
@@ -74,35 +72,41 @@ docker compose pull
 docker compose up -d
 ```
 
-### 路径与会话启动
+### 挂载（不要挂整个 home）
 
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
-| `./home` | `/home/sandbox` | `$HOME`：`.claude`、`.bashrc`、`.profile`、`~/.local` 等 |
+| `./claude` | `/home/sandbox/.claude` | settings、会话 transcript |
 
-- **Go / web-claude**：从环境 **PATH** 找 `claude`、`git`（镜像里 `claude` 在 `/usr/local/bin`，`git` 在系统路径）。
-- **会话进程**：`bash -lc …` **login shell**，会读 `~/.profile` / `~/.bashrc`，你在里面加的 PATH、工具对 Claude 可见。
-- **`claude` 程序**装在镜像的 `/usr/local/bin`，不依赖 home 卷，避免挂载空 home 后找不到命令。
-- **会话记录**在 `home/.claude/`，重建容器不丢。
+镜像内已有（**不挂载**）：
+
+- `/home/sandbox/.profile`、`.bashrc`（装 Claude **之前**创建，install.sh 会往里写 PATH）
+- `/home/sandbox/.local`（Claude 安装位置）
+- `/usr/local/bin/claude`（固定一份，供 Go 从 PATH 启动）
+- 系统 `git`
+
+### 进程怎么找命令
+
+- **Go / web-claude**：`PATH` 里找 `claude`、`git`
+- **会话**：`bash -lc`，会加载 `~/.profile` / `~/.bashrc`（镜像里那份）
 
 ### 装软件
 
 ```bash
-# 系统包
 sudo apt-get update && sudo apt-get install -y python3
-
-# 或写进 home 里持久化的 shell 配置
-echo 'export PATH="$HOME/tools/bin:$PATH"' >> home/.bashrc
 ```
 
-**不要**写 compose `user:`（会跳过 PUID 入口）。
+装到系统 PATH 的工具会话里都能用。  
+（容器重建会丢 apt 包，需要的话写进自己的 Dockerfile。）
+
+**不要**写 compose `user:`。
 
 ### NAS
 
 ```bash
-ls -ln data home
-# 设置 PUID/PGID 与属主一致
+ls -ln data claude
+# PUID/PGID 对齐属主
 ```
 
 ---
@@ -114,13 +118,13 @@ ls -ln data home
 | `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填 |
 | `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 项目根 | 二进制：家目录；Docker：`/data` |
-| `PUID` / `PGID` | 业务进程 uid/gid | `1000` / `1000` |
+| `PUID` / `PGID` | 业务进程 uid/gid | `1000` |
 
 ---
 
 ## 发版
 
 ```bash
-git tag v0.1.10
-git push origin v0.1.10
+git tag v0.1.11
+git push origin v0.1.11
 ```

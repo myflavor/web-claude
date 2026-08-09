@@ -12,6 +12,6 @@ services:
       PGID: 1000
     volumes:
       - ./data:/data
-      # 整个 home：.claude 会话 + .bashrc/.profile + 用户自装软件
-      - ./home:/home/sandbox
+      # 仅持久化 Claude 配置/会话（不要挂整个 home）
+      - ./claude:/home/sandbox/.claude
     restart: unless-stopped
