@@ -92,11 +92,15 @@ env 里的 `ANTHROPIC_*` 若设置了，会覆盖进子进程（便于临时改�
 ## 方式 B：Docker
 
 ```bash
-cp .env.example .env          # 填 WEB_CLAUDE_TOKEN
 cp settings.json.example settings.json   # 按需改 Claude 配置
 mkdir -p data
-docker compose up -d --build
+# 如仓库/包为私有：先 docker login ghcr.io
+docker compose pull
+docker compose up -d
 ```
+
+默认使用 CI 发布的镜像 `ghcr.io/myflavor/web-claude:latest`（见 `docker-compose.yml`）。
+
 
 挂载约定：
 

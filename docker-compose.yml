@@ -1,11 +1,11 @@
 services:
   web-claude:
-    build: .
+    image: ghcr.io/myflavor/web-claude:latest
     ports:
-      - "3080:3080"
+      - 3080:3080
     environment:
       WEB_CLAUDE_TOKEN: password
-      WEB_CLAUDE_PORT: "3080"
+      WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
     volumes:
       - ./data:/data
