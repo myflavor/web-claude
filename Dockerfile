@@ -50,9 +50,11 @@ RUN set -eux; \
     claude --version
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN useradd -m -u 1000 -s /bin/bash claude \
     && mkdir -p /data /home/claude/.claude \
+    && chmod +x /usr/local/bin/entrypoint.sh \
     && chown -R claude:claude /data /home/claude
 
 ENV HOME=/home/claude \
@@ -64,4 +66,4 @@ USER claude
 WORKDIR /data
 EXPOSE 3080
 
-ENTRYPOINT ["web-claude"]
+ENTRYPOINT ["entrypoint.sh"]

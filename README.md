@@ -61,7 +61,7 @@ services:
       WEB_CLAUDE_ROOT: /data
     volumes:
       - ./data:/data
-      - ./settings.json:/home/claude/.claude/settings.json:ro
+      - ./settings.json:/settings.json:ro
     restart: unless-stopped
 ```
 
@@ -78,9 +78,11 @@ docker compose up -d
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
-| `./settings.json` | `/home/claude/.claude/settings.json` | Claude 配置 |
+| `./settings.json` | `/settings.json`（启动时复制到 `~/.claude/settings.json`） | Claude 配置 |
 
-镜像内已带 **git** 与 **Claude Code**。  
+镜像内已带 **git** 与 **Claude Code**。
+
+`settings.json` 必须是**文件**（不要缺文件让 Docker 建成目录）。启动时会复制进容器用户目录，避免只读挂载导致 Claude 报无权限。  
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 
 ---
