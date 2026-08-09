@@ -37,20 +37,21 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl bash git gosu sudo passwd \
+      ca-certificates curl bash git gosu sudo adduser \
+    && command -v useradd \
+    && command -v groupmod \
+    && command -v usermod \
+    && useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
+    && mkdir -p /data /home/sandbox/.claude /home/sandbox/.local/bin \
+    && touch /home/sandbox/.profile /home/sandbox/.bashrc \
+    && chown -R sandbox:sandbox /home/sandbox /data \
+    && echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox \
+    && chmod 0440 /etc/sudoers.d/sandbox \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
-
-# Create sandbox + shell rc BEFORE Claude install.
-RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
-    && mkdir -p /data /home/sandbox/.claude /home/sandbox/.local/bin \
-    && touch /home/sandbox/.profile /home/sandbox/.bashrc \
-    && chown -R sandbox:sandbox /home/sandbox /data \
-    && echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox \
-    && chmod 0440 /etc/sudoers.d/sandbox
 
 # Install Claude as sandbox (writes under /home/sandbox; may patch profile/bashrc).
 USER sandbox
