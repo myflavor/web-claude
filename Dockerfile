@@ -27,6 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
 # —— Runtime ——
 FROM debian:bookworm-slim
 
+# Keep sbin on PATH: useradd/groupmod/usermod live in /usr/sbin.
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/sandbox \
     WEB_CLAUDE_ROOT=/data \
@@ -34,13 +35,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RUN_MODE=docker \
     PUID=1000 \
     PGID=1000 \
-    PATH=/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl bash git gosu sudo adduser \
-    && command -v useradd \
-    && command -v groupmod \
-    && command -v usermod \
+      ca-certificates curl bash git gosu sudo passwd \
     && useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
     && mkdir -p /data /home/sandbox/.claude /home/sandbox/.local/bin \
     && touch /home/sandbox/.profile /home/sandbox/.bashrc \
@@ -53,29 +51,24 @@ COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-# Install Claude as sandbox (writes under /home/sandbox; may patch profile/bashrc).
+# Install Claude as sandbox (may write ~/.local and patch profile/bashrc).
 USER sandbox
 WORKDIR /home/sandbox
+ENV PATH=/home/sandbox/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Pin claude on system PATH so Go always finds it (not under mounted .claude).
+# Pin claude on system PATH so Go always finds it even if home layout changes.
 USER root
 RUN set -eux; \
-    CLAUDE_SRC=""; \
-    for c in \
-      /home/sandbox/.local/bin/claude \
-      /home/sandbox/.claude/local/bin/claude \
-      /home/sandbox/.claude/local/claude; do \
-      if [ -e "$c" ]; then CLAUDE_SRC="$c"; break; fi; \
-    done; \
-    if [ -z "$CLAUDE_SRC" ]; then \
-      CLAUDE_SRC="$(su -s /bin/bash sandbox -c 'command -v claude')"; \
-    fi; \
+    CLAUDE_SRC="$(su -s /bin/bash sandbox -c 'command -v claude')"; \
     test -n "$CLAUDE_SRC"; \
     install -m 0755 "$(readlink -f "$CLAUDE_SRC")" /usr/local/bin/claude; \
     command -v claude; \
     claude --version; \
     command -v git
+
+# Runtime default PATH: system tools first; user-local tools still available.
+ENV PATH=/usr/local/bin:/home/sandbox/.local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
 WORKDIR /data
 EXPOSE 3080

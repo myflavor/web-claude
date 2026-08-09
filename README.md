@@ -58,16 +58,16 @@ docker compose pull
 docker compose up -d
 ```
 
-### 启动时做了什么
+### 启动流程
 
 ```text
 entrypoint (root)
-  → usermod/groupmod sandbox = PUID:PGID
-  → chown /home/sandbox、/home/sandbox/.claude、/data
+  → usermod/groupmod sandbox = PUID:PGID（已一致则跳过）
+  → chown /home/sandbox、/data
   → gosu sandbox
-  → bash -lc          # 读 ~/.profile ~/.bashrc
+  → bash -lc          # 读 ~/.profile / ~/.bashrc
   → exec web-claude
-  → exec claude       # 继承环境
+  → 会话里 exec claude（继承环境）
 ```
 
 | 宿主机 | 容器 |
@@ -75,7 +75,7 @@ entrypoint (root)
 | `./data` | `/data` 项目 |
 | `./claude` | `/home/sandbox/.claude` 配置+会话 |
 
-**不要**写 compose `user:`（会跳过入口）。
+**不要**写 compose `user:`。
 
 ### NAS
 
@@ -111,7 +111,10 @@ sudo apt-get install -y python3
 
 ## 发版
 
+本地先验证镜像再打 tag：
+
 ```bash
-git tag v0.1.14
-git push origin v0.1.14
+docker build -t web-claude:local .
+git tag v0.1.15
+git push origin v0.1.15
 ```
