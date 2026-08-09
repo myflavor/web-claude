@@ -497,8 +497,34 @@ async function resumeConversation(c) {
   }
 }
 
+function disposeTerm() {
+  if (resizeObserver) {
+    try {
+      resizeObserver.disconnect();
+    } catch {
+      /* ignore */
+    }
+    resizeObserver = null;
+  }
+  if (term) {
+    try {
+      term.dispose();
+    } catch {
+      /* ignore */
+    }
+    term = null;
+  }
+  fitAddon = null;
+}
+
 function ensureTerm() {
-  if (term) return;
+  if (!termEl.value) return false;
+  // xterm can only open once per instance; recreate if missing or detached.
+  if (term) {
+    const host = term.element?.parentElement;
+    if (host === termEl.value) return true;
+    disposeTerm();
+  }
   term = new Terminal({
     cursorBlink: true,
     fontSize: 14,
@@ -516,16 +542,38 @@ function ensureTerm() {
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.loadAddon(new WebLinksAddon());
+  // Ensure host is empty before open.
+  termEl.value.innerHTML = "";
   term.open(termEl.value);
   term.onData((data) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(new TextEncoder().encode(data));
     }
   });
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      fitAndResize();
+    });
+    resizeObserver.observe(termEl.value);
+  }
+  return true;
+}
+
+function fitAndResize() {
+  if (!term || !fitAddon || !termEl.value) return;
+  const { clientWidth, clientHeight } = termEl.value;
+  if (clientWidth < 20 || clientHeight < 20) return;
+  try {
+    fitAddon.fit();
+  } catch {
+    /* ignore */
+  }
+  sendResize();
 }
 
 function sendResize() {
   if (!ws || ws.readyState !== WebSocket.OPEN || !term) return;
+  if (!term.cols || !term.rows) return;
   ws.send(
     JSON.stringify({
       type: "resize",
@@ -538,6 +586,7 @@ function sendResize() {
 function connectWS(sessionId) {
   if (ws) {
     try {
+      ws.onclose = null;
       ws.close();
     } catch {
       /* ignore */
@@ -547,52 +596,72 @@ function connectWS(sessionId) {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const url = `${proto}://${location.host}/api/sessions/${sessionId}/ws`;
   termStatus.value = "连接中…";
-  ws = new WebSocket(url);
-  ws.binaryType = "arraybuffer";
+  const socket = new WebSocket(url);
+  ws = socket;
+  socket.binaryType = "arraybuffer";
 
-  ws.onopen = () => {
+  socket.onopen = () => {
+    if (ws !== socket) return;
     termStatus.value = "";
-    try {
-      fitAddon.fit();
-    } catch {
-      /* ignore */
-    }
-    sendResize();
+    fitAndResize();
+    // layout may settle a frame later on mobile
+    requestAnimationFrame(() => fitAndResize());
   };
-  ws.onmessage = (ev) => {
-    if (!term) return;
+  socket.onmessage = (ev) => {
+    if (!term || ws !== socket) return;
     if (ev.data instanceof ArrayBuffer) {
       term.write(new Uint8Array(ev.data));
     } else {
       term.write(ev.data);
     }
   };
-  ws.onclose = () => {
+  socket.onclose = () => {
+    if (ws === socket) ws = null;
     if (shouldReconnect && currentSession.value) {
       termStatus.value = "重新连接中…";
       clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(() => connectWS(currentSession.value.id), 1200);
-    } else {
+    } else if (!termStatus.value) {
       termStatus.value = "";
     }
   };
-  ws.onerror = () => {};
+  socket.onerror = () => {
+    if (ws === socket) {
+      termStatus.value = "连接失败";
+    }
+  };
 }
 
 async function openTerminal(s) {
+  if (!s || !s.id) {
+    ui.uiAlert("会话无效");
+    return;
+  }
   currentSession.value = s;
   shouldReconnect = true;
+  termStatus.value = "连接中…";
   view.value = "term";
   await nextTick();
-  ensureTerm();
-  term.reset();
-  try {
-    fitAddon.fit();
-  } catch {
-    /* ignore */
+  // Wait until terminal host is laid out (v-else-if mounts fresh DOM).
+  let ok = ensureTerm();
+  if (!ok) {
+    await nextTick();
+    ok = ensureTerm();
   }
+  if (!ok || !term) {
+    termStatus.value = "终端初始化失败";
+    ui.uiAlert("终端初始化失败，请返回重试");
+    return;
+  }
+  term.reset();
+  // fit after flex layout
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  fitAndResize();
   connectWS(s.id);
-  setTimeout(() => term?.focus(), 50);
+  setTimeout(() => {
+    fitAndResize();
+    term?.focus();
+  }, 50);
 }
 
 function leaveTerminal() {
@@ -600,6 +669,7 @@ function leaveTerminal() {
   clearTimeout(reconnectTimer);
   if (ws) {
     try {
+      ws.onclose = null;
       ws.close();
     } catch {
       /* ignore */
@@ -607,6 +677,9 @@ function leaveTerminal() {
     ws = null;
   }
   currentSession.value = null;
+  termStatus.value = "";
+  // Dispose so next enter re-opens on a fresh DOM node.
+  disposeTerm();
   view.value = "sessions";
   loadSessions().catch((e) => {
     if (e.status !== 401) ui.uiAlert(e.message);
@@ -624,6 +697,7 @@ async function killCurrent() {
   clearTimeout(reconnectTimer);
   if (ws) {
     try {
+      ws.onclose = null;
       ws.close();
     } catch {
       /* ignore */
@@ -637,6 +711,8 @@ async function killCurrent() {
     return;
   }
   currentSession.value = null;
+  termStatus.value = "";
+  disposeTerm();
   view.value = "sessions";
   await loadSessions().catch(() => {});
 }
@@ -689,19 +765,14 @@ async function onPaste(e) {
 }
 
 function onWinResize() {
-  if (view.value !== "term" || !fitAddon) return;
-  try {
-    fitAddon.fit();
-    sendResize();
-  } catch {
-    /* ignore */
-  }
+  if (view.value !== "term") return;
+  fitAndResize();
 }
 
 watch(view, async (v) => {
   if (v === "term") {
     await nextTick();
-    onWinResize();
+    fitAndResize();
   }
 });
 
@@ -718,17 +789,13 @@ onUnmounted(() => {
   clearTimeout(reconnectTimer);
   if (ws) {
     try {
+      ws.onclose = null;
       ws.close();
     } catch {
       /* ignore */
     }
+    ws = null;
   }
-  if (term) {
-    term.dispose();
-    term = null;
-  }
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
+  disposeTerm();
 });
 </script>
