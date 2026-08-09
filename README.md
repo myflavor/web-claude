@@ -62,22 +62,22 @@ docker compose up -d
 
 | 目标 | 做法 |
 |------|------|
-| Claude 读得到 profile/bashrc | 会话用 **`bash -lc`**（login shell） |
-| NAS 方便 | **`PUID`/`PGID`**：直接以该数字 uid 运行，**不 usermod** |
-| Go 找得到 claude/git | 固定在 **`/usr/local/bin`** 与系统 PATH |
-| 会话不丢 | 只挂 **`./claude` → `/home/sandbox/.claude`**（不挂整个 home） |
+| 带上 profile/bashrc 环境 | **入口**用 `bash -lc` 启动 `web-claude`，环境进进程；Go **不再**包一层 shell |
+| NAS 方便 | **`PUID`/`PGID`**：`gosu` 数字 uid，**不 usermod** |
+| Go 找 claude/git | 固定 **`/usr/local/bin`** + 系统 PATH（`os.Environ()` 继承） |
+| 会话不丢 | 只挂 **`./claude` → `/home/sandbox/.claude`** |
 
-镜像构建时：
+流程：
 
-1. 在 `/home/sandbox` 先建好 `.profile` / `.bashrc`
-2. 用 sandbox 装 Claude（可写进 profile）
-3. 再把 `claude` 拷到 `/usr/local/bin`
+```text
+entrypoint (root)
+  → gosu PUID:PGID
+  → bash -lc          # 读 ~/.profile ~/.bashrc，export 进环境
+  → exec web-claude   # Go 进程带着这些环境变量
+  → exec claude       # 子进程继承同一套 env
+```
 
-启动时 entrypoint：
-
-1. 保证 `.profile` / `.bashrc` 存在  
-2. `chown PUID:PGID` 到 home / data  
-3. `gosu PUID:PGID web-claude`（**不改** `/etc/passwd`）
+镜像构建时先建 `.profile`/`.bashrc`，再装 Claude，并把 `claude` 拷到 `/usr/local/bin`。
 
 ### NAS
 

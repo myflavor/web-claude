@@ -155,11 +155,13 @@ func (m *Manager) CreateWith(opts CreateOptions) (*Session, error) {
 		_ = os.MkdirAll(filepath.Join(cwd, UploadDirName), 0o755)
 	}
 
-	// Always start via login shell so ~/.profile and ~/.bashrc are loaded
-	// (PATH for tools installed by the user / Claude install.sh).
-	// Go only needs `claude` and `git` on PATH for its own lookups.
+	// Start claude directly. Environment (PATH etc.) comes from the process
+	// env — in Docker the entrypoint starts web-claude via a login shell so
+	// ~/.profile / ~/.bashrc are already applied. Go only PATH-looks up
+	// "claude" and "git".
 	var cmd *exec.Cmd
 	if opts.Shell != "" {
+		// Multi-step setup (e.g. git clone then exec claude) still needs a shell.
 		cmd = exec.Command("bash", "-lc", opts.Shell)
 	} else {
 		args := append([]string{}, m.claudeArgs...)
@@ -169,7 +171,7 @@ func (m *Manager) CreateWith(opts CreateOptions) (*Session, error) {
 			args = append(args, "-c")
 		}
 		args = append(args, opts.ExtraArgs...)
-		cmd = exec.Command("bash", "-lc", shellJoin(m.claudeBin, args...))
+		cmd = exec.Command(m.claudeBin, args...)
 	}
 	cmd.Dir = workDir
 	cmd.Env = m.buildEnv()
@@ -251,21 +253,6 @@ func setEnv(env []string, key, val string) []string {
 		}
 	}
 	return append(env, prefix+val)
-}
-
-// shellJoin builds a bash-safe command line: cmd + args, each single-quoted.
-func shellJoin(bin string, args ...string) string {
-	var b strings.Builder
-	b.WriteString(shellQuote(bin))
-	for _, a := range args {
-		b.WriteByte(' ')
-		b.WriteString(shellQuote(a))
-	}
-	return b.String()
-}
-
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func (m *Manager) readLoop(s *Session) {
