@@ -11,5 +11,4 @@ mkdir -p /home/sandbox/.claude /data
 chown -R sandbox:sandbox /home/sandbox
 chown sandbox:sandbox /data
 
-exec gosu sandbox env HOME=/home/sandbox \
-  bash -lc 'cd /data; exec "$@"' -- "$@"
+exec gosu sandbox bash -lc 'cd /data; exec "$@"' -- "$@"

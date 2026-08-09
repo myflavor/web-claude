@@ -84,5 +84,5 @@ NAS：`PUID`/`PGID` 填 `ls -ln` 的属主。
 
 ```bash
 docker build -t web-claude:local .
-git tag v0.1.16 && git push origin v0.1.16
+git tag v0.1.18 && git push origin v0.1.18
 ```
