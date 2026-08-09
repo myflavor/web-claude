@@ -125,6 +125,12 @@ async function logout() {
 }
 
 onMounted(async () => {
+  // Boot first: sets booted=true and project root. If it fails, route to login.
+  const ok = await store.boot();
+  if (!ok) {
+    router.replace("/login");
+    return;
+  }
   await store.loadSessions();
 });
 </script>
