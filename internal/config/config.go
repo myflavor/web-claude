@@ -73,7 +73,6 @@ func Load() (*Config, error) {
 	// auto: if project/home overrides look container-like, keep custom; else detect.
 	if mode == "auto" {
 		if firstEnv("WEB_CLAUDE_ROOT", "") != "" ||
-			firstEnv("PROJECTS_ROOT", "") != "" ||
 			firstEnv("HOME_DIR", "") != "" ||
 			firstEnv("CLAUDE_HOME", "") != "" {
 			mode = "custom"
@@ -86,7 +85,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		ListenAddr:      resolveListenAddr(),
-		AuthToken:       firstEnv("WEB_CLAUDE_TOKEN", "AUTH_TOKEN", ""),
+		AuthToken:       firstEnv("WEB_CLAUDE_TOKEN", ""),
 		ClaudeBin:       firstEnv("CLAUDE_BIN", "claude"),
 		RingBufferBytes: envInt("RING_BUFFER_BYTES", 512*1024),
 		UploadMaxBytes:  int64(envInt("UPLOAD_MAX_BYTES", 50*1024*1024)),
@@ -96,7 +95,7 @@ func Load() (*Config, error) {
 	switch mode {
 	case "docker":
 		// Integrated image: isolated home + projects under /data.
-		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "PROJECTS_ROOT", "/data/projects")
+		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "/data/projects")
 		cfg.ClaudeHome = firstEnv("CLAUDE_HOME", "HOME_DIR", "/data/home")
 		cfg.InheritUserEnv = false
 	default: // native / wsl / host / custom / explicit env
@@ -106,7 +105,7 @@ func Load() (*Config, error) {
 		if defRoot == "" {
 			defRoot = "."
 		}
-		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", "PROJECTS_ROOT", defRoot)
+		cfg.ProjectsRoot = firstEnv("WEB_CLAUDE_ROOT", defRoot)
 		// Empty ClaudeHome → do not override HOME (use ~/.claude as-is).
 		cfg.ClaudeHome = firstEnv("CLAUDE_HOME", "HOME_DIR", "")
 		cfg.InheritUserEnv = cfg.ClaudeHome == ""
@@ -144,10 +143,10 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.AuthToken == "" {
-		return nil, fmt.Errorf("WEB_CLAUDE_TOKEN (or AUTH_TOKEN) is required (web login password)")
+		return nil, fmt.Errorf("WEB_CLAUDE_TOKEN is required (web login password)")
 	}
 	if cfg.ProjectsRoot == "" {
-		return nil, fmt.Errorf("WEB_CLAUDE_ROOT (or PROJECTS_ROOT) is required")
+		return nil, fmt.Errorf("WEB_CLAUDE_ROOT is required")
 	}
 
 	// Resolve relative paths against cwd for native use.
@@ -163,21 +162,17 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// resolveListenAddr prefers WEB_CLAUDE_PORT, then LISTEN_ADDR, then :8080.
-// WEB_CLAUDE_PORT may be "7080" or ":7080".
+// resolveListenAddr uses WEB_CLAUDE_PORT (default 3080).
+// Accepts "3080", ":3080", or a full host:port.
 func resolveListenAddr() string {
-	if p := strings.TrimSpace(os.Getenv("WEB_CLAUDE_PORT")); p != "" {
-		if strings.Contains(p, ":") {
-			// full addr or already ":port"
-			if strings.HasPrefix(p, ":") || strings.Contains(p, "]:") || strings.Count(p, ":") > 1 {
-				return p
-			}
-			// host:port
-			return p
-		}
-		return ":" + p
+	p := strings.TrimSpace(os.Getenv("WEB_CLAUDE_PORT"))
+	if p == "" {
+		return ":3080"
 	}
-	return firstEnv("LISTEN_ADDR", ":8080")
+	if strings.Contains(p, ":") {
+		return p
+	}
+	return ":" + p
 }
 
 // firstEnv returns the first non-empty env among keys, or def if all empty.

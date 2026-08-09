@@ -2,17 +2,13 @@ services:
   claude-mobile:
     build: .
     ports:
-      - "${WEB_CLAUDE_PORT:-${PORT:-8080}}:8080"
+      - "${WEB_CLAUDE_PORT:-3080}:3080"
     environment:
-      # Web UI login (not your Anthropic key)
-      WEB_CLAUDE_TOKEN: ${WEB_CLAUDE_TOKEN:-${AUTH_TOKEN:-change-me-please}}
-      # keep legacy AUTH_TOKEN for older .env files
-      AUTH_TOKEN: ${WEB_CLAUDE_TOKEN:-${AUTH_TOKEN:-change-me-please}}
-      LISTEN_ADDR: ":8080"
+      WEB_CLAUDE_TOKEN: ${WEB_CLAUDE_TOKEN:?set WEB_CLAUDE_TOKEN}
+      WEB_CLAUDE_PORT: "3080"
       RUN_MODE: docker
 
       WEB_CLAUDE_ROOT: /data/projects
-      PROJECTS_ROOT: /data/projects
       # Isolated home inside container → ~/.claude lives here
       CLAUDE_HOME: /data/home
       HOME_DIR: /data/home
@@ -30,8 +26,6 @@ services:
       IDLE_TTL_HOURS: ${IDLE_TTL_HOURS:-24}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
-      # Your code
       - ${PROJECTS_HOST_PATH:-./data/projects}:/data/projects
-      # Claude config + sessions (settings.json, history, ...)
       - ${CLAUDE_HOME_HOST_PATH:-${HOME_HOST_PATH:-./data/home}}:/data/home
     restart: unless-stopped

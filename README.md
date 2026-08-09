@@ -19,7 +19,7 @@
 ```bash
 cd web/ui
 npm install
-npm run dev      # http://127.0.0.1:5173 ，/api 代理到 :8080
+npm run dev      # http://127.0.0.1:5173 ，/api 代理到 :3080
 npm run build    # → web/static
 ```
 
@@ -36,12 +36,12 @@ npm run build    # → web/static
 
 ```text
 WSL 独立运行:
-  手机浏览器 → :8080 → claude-mobile(二进制)
+  手机浏览器 → :3080 → claude-mobile(二进制)
                            → spawn 系统 claude
                            → HOME=~  →  ~/.claude/settings.json
 
 NAS Docker:
-  手机浏览器 → :8080 → container
+  手机浏览器 → :3080 → container
                          → claude-mobile
                          → spawn 镜像内 claude
                          → HOME=/data/home  (volume)
@@ -62,8 +62,8 @@ cd claude-mobile
 
 # 最小配置：只要 Web 登录密码
 export WEB_CLAUDE_TOKEN='你的网页密码'
-# 可选：监听端口（默认 8080）
-# export WEB_CLAUDE_PORT=7080
+# 可选：监听端口（默认 3080）
+# export WEB_CLAUDE_PORT=3080
 # 可选：可浏览的项目根（默认用户家目录 ~）
 # export WEB_CLAUDE_ROOT="$HOME"
 # 不要设置 CLAUDE_HOME / HOME_DIR → 自动用真实用户 HOME 和 ~/.claude
@@ -81,7 +81,7 @@ cp .env.example .env
 ./claude-mobile
 ```
 
-打开 `http://<wsl-ip>:8080`（手机同一局域网 / Tailscale）。
+打开 `http://<wsl-ip>:3080`（手机同一局域网 / Tailscale）。
 
 **此时 settings：** 直接用 `~/.claude/settings.json`，无需复制。  
 env 里的 `ANTHROPIC_*` 若设置了，会覆盖进子进程（便于临时改网关）。
@@ -97,7 +97,7 @@ env 里的 `ANTHROPIC_*` 若设置了，会覆盖进子进程（便于临时改�
 
 ```bash
 cp .env.example .env
-# 必填: WEB_CLAUDE_TOKEN（或 AUTH_TOKEN）
+# 必填: WEB_CLAUDE_TOKEN
 # 填 API: ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_MODEL ...
 
 # 准备 Claude 配置（二选一）
@@ -153,7 +153,7 @@ API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings
 |------|----------|--------|
 | `WEB_CLAUDE_TOKEN` | 网页密码（首选） | 网页密码 |
 | `WEB_CLAUDE_ROOT` | 可浏览的代码根（默认 `~`） | 容器内 `/data/projects` |
-| `WEB_CLAUDE_PORT` | 监听端口（默认 `8080`） | compose 宿主映射端口 |
+| `WEB_CLAUDE_PORT` | 监听端口（默认 `3080`） | compose 宿主映射端口 |
 | `CLAUDE_HOME` / `HOME_DIR` | **通常留空**（用真实 HOME） | `/data/home` |
 | `ANTHROPIC_*` | 可选（已有 settings/env 可省略） | 常用，注入自定义网关 |
 | `CLAUDE_BIN` | 默认 PATH 里的 `claude` | 镜像内 `claude` |

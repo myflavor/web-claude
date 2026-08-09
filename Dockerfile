@@ -35,14 +35,14 @@ RUN mkdir -p /data/projects /data/home \
     && chown -R node:node /data
 
 ENV HOME=/data/home \
-    PROJECTS_ROOT=/data/projects \
+    WEB_CLAUDE_ROOT=/data/projects \
     CLAUDE_HOME=/data/home \
     HOME_DIR=/data/home \
-    LISTEN_ADDR=:8080 \
+    WEB_CLAUDE_PORT=3080 \
     RUN_MODE=docker
 
 USER node
 WORKDIR /data/projects
-EXPOSE 8080
+EXPOSE 3080
 
 ENTRYPOINT ["claude-mobile"]
