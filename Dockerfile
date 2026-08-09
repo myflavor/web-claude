@@ -8,31 +8,53 @@ RUN npm install
 COPY web/ui/ ./
 RUN npm run build
 
-# —— Backend ——
+# —— Backend (static binary) ——
 FROM golang:1.22-bookworm AS builder
 WORKDIR /src
 ENV GOTOOLCHAIN=local
+ARG VERSION=dev
+ARG COMMIT=unknown
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 COPY web/embed.go ./web/embed.go
 COPY --from=frontend /src/web/static ./web/static
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/claude-mobile ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/web-claude ./cmd/server
 
-# —— Runtime (Claude CLI + binary) ——
-FROM node:22-bookworm-slim
+# —— Runtime: Debian + git + Claude Code only ——
+FROM debian:bookworm-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Minimal base so install.sh / git work over HTTPS.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl ca-certificates bash openssh-client python3 \
+      ca-certificates \
+      curl \
+      bash \
+      git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code
+# Official Claude Code installer → put real binary on system PATH (not a root-only symlink).
+RUN set -eux; \
+    curl -fsSL https://claude.ai/install.sh | bash; \
+    CLAUDE_SRC=""; \
+    for c in /root/.local/bin/claude /root/.claude/local/bin/claude /root/.claude/local/claude; do \
+      if [ -e "$c" ]; then CLAUDE_SRC="$c"; break; fi; \
+    done; \
+    if [ -z "$CLAUDE_SRC" ]; then CLAUDE_SRC="$(command -v claude)"; fi; \
+    CLAUDE_REAL="$(readlink -f "$CLAUDE_SRC")"; \
+    install -m 0755 "$CLAUDE_REAL" /usr/local/bin/claude; \
+    command -v claude; \
+    claude --version
 
-COPY --from=builder /out/claude-mobile /usr/local/bin/claude-mobile
+COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 
-RUN mkdir -p /data/projects /data/home \
-    && chown -R node:node /data
+RUN useradd -m -u 1000 -s /bin/bash claude \
+    && mkdir -p /data/projects /data/home \
+    && chown -R claude:claude /data
 
 ENV HOME=/data/home \
     WEB_CLAUDE_ROOT=/data/projects \
@@ -41,8 +63,8 @@ ENV HOME=/data/home \
     WEB_CLAUDE_PORT=3080 \
     RUN_MODE=docker
 
-USER node
+USER claude
 WORKDIR /data/projects
 EXPOSE 3080
 
-ENTRYPOINT ["claude-mobile"]
+ENTRYPOINT ["web-claude"]

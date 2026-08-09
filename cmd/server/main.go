@@ -18,8 +18,15 @@ import (
 	"github.com/xin/claude-mobile/web"
 )
 
+// Set via -ldflags at release time.
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 func main() {
-	logger := log.New(os.Stdout, "[claude-mobile] ", log.LstdFlags|log.Lmsgprefix)
+	logger := log.New(os.Stdout, "[web-claude] ", log.LstdFlags|log.Lmsgprefix)
+	logger.Printf("version=%s commit=%s", version, commit)
 
 	cfg, err := config.Load()
 	if err != nil {

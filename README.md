@@ -36,13 +36,13 @@ npm run build    # → web/static
 
 ```text
 WSL 独立运行:
-  手机浏览器 → :3080 → claude-mobile(二进制)
+  手机浏览器 → :3080 → web-claude(二进制)
                            → spawn 系统 claude
                            → HOME=~  →  ~/.claude/settings.json
 
 NAS Docker:
   手机浏览器 → :3080 → container
-                         → claude-mobile
+                         → web-claude
                          → spawn 镜像内 claude
                          → HOME=/data/home  (volume)
                               └── .claude/settings.json   ← 你挂进去的配置
@@ -70,7 +70,7 @@ export WEB_CLAUDE_TOKEN='你的网页密码'
 
 go run ./cmd/server
 # 或
-go build -o claude-mobile ./cmd/server && ./claude-mobile
+go build -o web-claude ./cmd/server && ./web-claude
 ```
 
 也支持自动读当前目录 `.env`（不会覆盖已有环境变量）：
@@ -78,7 +78,7 @@ go build -o claude-mobile ./cmd/server && ./claude-mobile
 ```bash
 cp .env.example .env
 # 编辑 WEB_CLAUDE_TOKEN / WEB_CLAUDE_PORT / WEB_CLAUDE_ROOT；API 相关若已在 shell/settings 里可省略
-./claude-mobile
+./web-claude
 ```
 
 打开 `http://<wsl-ip>:3080`（手机同一局域网 / Tailscale）。
@@ -184,7 +184,7 @@ API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings
 
 ```bash
 go test ./internal/...
-go build -o claude-mobile ./cmd/server
+go build -o web-claude ./cmd/server
 ```
 
 ---
@@ -198,3 +198,42 @@ go build -o claude-mobile ./cmd/server
 | settings 里 permissions / model | 写在 `settings.json`；API 网关可用 env 覆盖 |
 
 程序 **不会** 在容器里凭空生成你的 API 配置逻辑；Docker 只负责带上 CLI，配置仍是你的文件 + 环境变量。
+
+
+## 发版（GitHub Actions）
+
+打 tag 即发版：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+会自动：
+
+1. **GitHub Release**：多平台独立二进制  
+   - `linux/amd64` `linux/arm64`  
+   - `darwin/amd64` `darwin/arm64`  
+   - `windows/amd64`  
+2. **Docker 镜像**（`debian:bookworm-slim` + `git` + Claude Code）：  
+   `ghcr.io/myflavor/web-claude:latest` / `:0.1.0`
+
+本机二进制：
+
+```bash
+export WEB_CLAUDE_TOKEN='你的密码'
+./web-claude_v0.1.0_linux_amd64
+```
+
+Docker：
+
+```bash
+docker run --rm -p 3080:3080 \
+  -e WEB_CLAUDE_TOKEN='你的密码' \
+  -v "$PWD/projects:/data/projects" \
+  -v "$PWD/home:/data/home" \
+  ghcr.io/myflavor/web-claude:latest
+```
+
+镜像内只预装 **git** 与 **Claude Code**，其他工具请自行装进容器或挂载。
+
