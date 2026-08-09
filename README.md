@@ -58,43 +58,14 @@ docker compose pull
 docker compose up -d
 ```
 
-### 启动流程
-
-```text
-entrypoint (root)
-  → usermod/groupmod sandbox = PUID:PGID（已一致则跳过）
-  → chown /home/sandbox、/data
-  → gosu sandbox
-  → bash -lc          # 读 ~/.profile / ~/.bashrc
-  → exec web-claude
-  → 会话里 exec claude（继承环境）
-```
-
 | 宿主机 | 容器 |
 |--------|------|
-| `./data` | `/data` 项目 |
-| `./claude` | `/home/sandbox/.claude` 配置+会话 |
+| `./data` | `/data` |
+| `./claude` | `/home/sandbox/.claude` |
 
-**不要**写 compose `user:`。
+NAS：`PUID`/`PGID` 填 `ls -ln` 的属主。
 
-### NAS
-
-```bash
-ls -ln data claude
-```
-
-```yaml
-environment:
-  PUID: 1002
-  PGID: 10
-```
-
-### 装软件
-
-```bash
-sudo apt-get update
-sudo apt-get install -y python3
-```
+装软件：`sudo apt-get install -y ...`
 
 ---
 
@@ -105,16 +76,13 @@ sudo apt-get install -y python3
 | `WEB_CLAUDE_TOKEN` | 登录密码 | 必填 |
 | `WEB_CLAUDE_PORT` | 端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 项目根 | Docker：`/data` |
-| `PUID` / `PGID` | sandbox 的 uid/gid | `1000` |
+| `PUID` / `PGID` | sandbox uid/gid | `1000` |
 
 ---
 
 ## 发版
 
-本地先验证镜像再打 tag：
-
 ```bash
 docker build -t web-claude:local .
-git tag v0.1.15
-git push origin v0.1.15
+git tag v0.1.16 && git push origin v0.1.16
 ```
