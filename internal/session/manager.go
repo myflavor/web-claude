@@ -155,6 +155,9 @@ func (m *Manager) CreateWith(opts CreateOptions) (*Session, error) {
 		_ = os.MkdirAll(filepath.Join(cwd, UploadDirName), 0o755)
 	}
 
+	// Always start via login shell so ~/.profile and ~/.bashrc are loaded
+	// (PATH for tools installed by the user / Claude install.sh).
+	// Go only needs `claude` and `git` on PATH for its own lookups.
 	var cmd *exec.Cmd
 	if opts.Shell != "" {
 		cmd = exec.Command("bash", "-lc", opts.Shell)
@@ -166,7 +169,7 @@ func (m *Manager) CreateWith(opts CreateOptions) (*Session, error) {
 			args = append(args, "-c")
 		}
 		args = append(args, opts.ExtraArgs...)
-		cmd = exec.Command(m.claudeBin, args...)
+		cmd = exec.Command("bash", "-lc", shellJoin(m.claudeBin, args...))
 	}
 	cmd.Dir = workDir
 	cmd.Env = m.buildEnv()
@@ -248,6 +251,21 @@ func setEnv(env []string, key, val string) []string {
 		}
 	}
 	return append(env, prefix+val)
+}
+
+// shellJoin builds a bash-safe command line: cmd + args, each single-quoted.
+func shellJoin(bin string, args ...string) string {
+	var b strings.Builder
+	b.WriteString(shellQuote(bin))
+	for _, a := range args {
+		b.WriteByte(' ')
+		b.WriteString(shellQuote(a))
+	}
+	return b.String()
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func (m *Manager) readLoop(s *Session) {

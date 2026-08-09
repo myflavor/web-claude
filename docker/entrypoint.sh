@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# 仅在 root 启动时：按 PUID/PGID 对齐 sandbox，再降权运行。
+# Root only long enough to map PUID/PGID, then drop to sandbox.
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
@@ -17,9 +17,8 @@ if [ "$(id -u)" -eq 0 ]; then
     useradd -o -u "$PUID" -g "$PGID" -d /home/sandbox -s /bin/bash -m sandbox
   fi
 
-  mkdir -p /home/sandbox/.claude /data
+  mkdir -p /home/sandbox /home/sandbox/.claude /home/sandbox/.local/bin /data
   chown -R sandbox:sandbox /home/sandbox 2>/dev/null || true
-  chown sandbox:sandbox /home/sandbox/.claude 2>/dev/null || true
   chown sandbox:sandbox /data 2>/dev/null || true
 
   echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox
@@ -27,12 +26,14 @@ if [ "$(id -u)" -eq 0 ]; then
 
   export HOME=/home/sandbox
   export USER=sandbox
-  # 保证 sandbox 安装的 claude 在 PATH 里
-  export PATH="/home/sandbox/.local/bin:${PATH}"
+  # System tools + user-local bins (apt / pip --user / etc).
+  export PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
   cd /data 2>/dev/null || cd /home/sandbox
-  exec gosu sandbox env HOME=/home/sandbox USER=sandbox PATH="/home/sandbox/.local/bin:${PATH}" "$@"
+  exec gosu sandbox env HOME=/home/sandbox USER=sandbox \
+    PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}" \
+    "$@"
 fi
 
 export HOME="${HOME:-/home/sandbox}"
-export PATH="/home/sandbox/.local/bin:${PATH}"
+export PATH="/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 exec "$@"

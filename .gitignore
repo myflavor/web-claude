@@ -1,5 +1,6 @@
 # runtime / secrets
 data/
+home/
 claude/
 .env
 settings.json

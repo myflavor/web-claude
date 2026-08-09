@@ -33,11 +33,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WEB_CLAUDE_PORT=3080 \
     RUN_MODE=docker \
     PUID=1000 \
-    PGID=1000 \
-    # Claude install.sh 默认装到 ~/.local/bin
-    PATH=/home/sandbox/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PGID=1000
 
-# 1) 系统包必须 root
+# System tools (git on PATH for Go + Claude).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl bash git gosu sudo \
     && rm -rf /var/lib/apt/lists/*
@@ -46,22 +44,36 @@ COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-# 2) 业务用户（默认 1000；启动时 entrypoint 可按 PUID/PGID 改号）
+# Default user; PUID/PGID may remap at start.
 RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
-    && mkdir -p /data /home/sandbox/.claude \
+    && mkdir -p /data /home/sandbox/.claude /home/sandbox/.local/bin \
     && chown -R sandbox:sandbox /home/sandbox /data \
     && echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox \
     && chmod 0440 /etc/sudoers.d/sandbox
 
-# 3) 用 sandbox 安装 Claude（配置/二进制落在该用户 HOME 下）
+# Install Claude as sandbox (writes ~/.local and usually patches .profile/.bashrc).
+# Then pin the binary onto the system PATH so a mounted home volume cannot hide it.
 USER sandbox
 WORKDIR /home/sandbox
 RUN curl -fsSL https://claude.ai/install.sh | bash \
-    && command -v claude \
-    && claude --version
+    && command -v claude
 
-# 4) 入口需 root 做 PUID/PGID，再 gosu 回 sandbox
 USER root
+# Prefer real binary under ~/.local; fall back to PATH.
+RUN set -eux; \
+    CLAUDE_SRC=""; \
+    for c in \
+      /home/sandbox/.local/bin/claude \
+      /home/sandbox/.claude/local/bin/claude \
+      /home/sandbox/.claude/local/claude; do \
+      if [ -e "$c" ]; then CLAUDE_SRC="$c"; break; fi; \
+    done; \
+    if [ -z "$CLAUDE_SRC" ]; then CLAUDE_SRC="$(su - sandbox -c 'command -v claude')"; fi; \
+    CLAUDE_REAL="$(readlink -f "$CLAUDE_SRC")"; \
+    install -m 0755 "$CLAUDE_REAL" /usr/local/bin/claude; \
+    command -v claude; \
+    claude --version
+
 WORKDIR /data
 EXPOSE 3080
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
