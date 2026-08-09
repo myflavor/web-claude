@@ -25,8 +25,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -o /out/web-claude ./cmd/server
 
 # —— Runtime ——
-# Fixed tools on system PATH. Sessions use bash -lc so ~/.profile + ~/.bashrc load.
-# NAS: set PUID/PGID; entrypoint runs as that numeric uid (no usermod).
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -36,7 +34,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RUN_MODE=docker \
     PUID=1000 \
     PGID=1000 \
-    PATH=/usr/local/bin:/usr/bin:/bin
+    PATH=/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl bash git gosu sudo \
@@ -46,24 +44,20 @@ COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-# Pre-create shell rc under /home/sandbox BEFORE installing Claude.
+# Create sandbox + shell rc BEFORE Claude install.
 RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
     && mkdir -p /data /home/sandbox/.claude /home/sandbox/.local/bin \
     && touch /home/sandbox/.profile /home/sandbox/.bashrc \
     && chown -R sandbox:sandbox /home/sandbox /data \
     && echo 'sandbox ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sandbox \
-    && echo 'Defaults:%sudo !requiretty' >/etc/sudoers.d/sudo-notty \
-    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/sudo-group \
-    && chmod 0440 /etc/sudoers.d/*
+    && chmod 0440 /etc/sudoers.d/sandbox
 
-# Install Claude as sandbox (may patch .profile/.bashrc; binary often in ~/.local).
+# Install Claude as sandbox (writes under /home/sandbox; may patch profile/bashrc).
 USER sandbox
 WORKDIR /home/sandbox
-ENV HOME=/home/sandbox \
-    PATH=/home/sandbox/.local/bin:/usr/local/bin:/usr/bin:/bin
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Always put a real claude on system PATH so Go never depends on home layout.
+# Pin claude on system PATH so Go always finds it (not under mounted .claude).
 USER root
 RUN set -eux; \
     CLAUDE_SRC=""; \
@@ -78,15 +72,6 @@ RUN set -eux; \
     fi; \
     test -n "$CLAUDE_SRC"; \
     install -m 0755 "$(readlink -f "$CLAUDE_SRC")" /usr/local/bin/claude; \
-    # Ensure profile always has a sane PATH for login shells (bash -lc).
-    grep -q '/usr/local/bin' /home/sandbox/.profile 2>/dev/null || \
-      echo 'export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"' >> /home/sandbox/.profile; \
-    grep -q '/.local/bin' /home/sandbox/.profile 2>/dev/null || \
-      echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/sandbox/.profile; \
-    # bash -lc is login; also make interactive bash source profile helpers via bashrc.
-    grep -q 'HOME/.local/bin' /home/sandbox/.bashrc 2>/dev/null || \
-      echo 'export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"' >> /home/sandbox/.bashrc; \
-    chown sandbox:sandbox /home/sandbox/.profile /home/sandbox/.bashrc; \
     command -v claude; \
     claude --version; \
     command -v git
