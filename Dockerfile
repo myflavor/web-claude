@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/web-claude ./cmd/server
 
-# —— Runtime: Debian + git + Claude Code（非 root）——
+# —— Runtime: Debian + git + Claude Code（默认非 root；入口可用 PUID/PGID）——
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,10 +34,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       bash \
       git \
+      gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Build as root: install Claude Code binary onto system PATH.
-# Runtime user is sandbox; config lives under /home/sandbox/.claude.
+# Runtime config lives under /home/sandbox/.claude (HOME).
 RUN set -eux; \
     curl -fsSL https://claude.ai/install.sh | bash; \
     CLAUDE_SRC=""; \
@@ -51,7 +52,10 @@ RUN set -eux; \
     claude --version
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
+# Default identity (overridden at start by PUID/PGID when set).
 RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
     && mkdir -p /data /home/sandbox/.claude \
     && chown -R sandbox:sandbox /data /home/sandbox
@@ -59,10 +63,14 @@ RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
 ENV HOME=/home/sandbox \
     WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
-    RUN_MODE=docker
+    RUN_MODE=docker \
+    PUID=1000 \
+    PGID=1000
 
-USER sandbox
+# Entrypoint starts as root only long enough to map uid/gid, then gosu → sandbox.
+USER root
 WORKDIR /data
 EXPOSE 3080
 
-ENTRYPOINT ["web-claude"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["web-claude"]

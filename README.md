@@ -45,9 +45,6 @@ cat > settings.json <<'JSON'
   }
 }
 JSON
-# 容器用户 uid=1000，权限不对时可：
-# chown 1000:1000 settings.json
-# chmod 666 settings.json
 ```
 
 `docker-compose.yml`：
@@ -62,6 +59,9 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
+      # NAS：与共享文件夹属主一致（群晖控制面板 → 用户 → 高级）
+      PUID: 1000
+      PGID: 1000
     volumes:
       - ./data:/data
       - ./settings.json:/home/sandbox/.claude/settings.json
@@ -76,6 +76,38 @@ docker compose pull
 docker compose up -d
 ```
 
+### NAS 怎么配
+
+容器**实际业务进程不是 root**：入口用 root 只改 uid，再 `gosu` 到 `sandbox`。
+
+1. 查共享目录属主（在 NAS SSH 上）：
+
+```bash
+ls -ln data settings.json
+# 或
+id 你的用户名
+```
+
+2. 把输出的数字写进 compose：
+
+```yaml
+environment:
+  PUID: 1002   # 例：你的 uid
+  PGID: 10     # 例：users 组
+```
+
+3. **不要**再写 `user: "1002:10"`（会绕过入口，HOME 权限会坏）。
+4. `settings.json` 必须是**文件**；不要加 `:ro`（Claude 可能写配置）。
+5. 更新镜像后：
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose logs -f --tail=50
+```
+
+若仍 EACCES：确认 `PUID/PGID` 与 `ls -ln` 一致，且挂载路径可写。
+
 挂载：
 
 | 宿主机 | 容器 | 用途 |
@@ -85,13 +117,11 @@ docker compose up -d
 
 镜像约定：
 
-- **非 root**：用户 `sandbox`（uid **1000**）
+- 业务用户：`sandbox`（默认 uid/gid **1000**，可用 **PUID/PGID** 改）
 - `HOME=/home/sandbox`
-- Claude 配置目录：**`/home/sandbox/.claude`**
+- Claude 配置目录：`/home/sandbox/.claude`
 - `claude` 程序：`/usr/local/bin/claude`
 - 预装：**git** + **Claude Code**
-
-`settings.json` 建议不要加 `:ro`（Claude 可能写入）。
 
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 
@@ -104,6 +134,8 @@ docker compose up -d
 | `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填（Compose 示例为 `password`） |
 | `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 可浏览的项目根 | 二进制：用户家目录；Docker：`/data` |
+| `PUID` | 容器内业务进程 uid（NAS 对齐共享属主） | `1000` |
+| `PGID` | 容器内业务进程 gid | `1000` |
 
 Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `ANTHROPIC_*` 环境变量）。
 
@@ -112,11 +144,11 @@ Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `A
 ## 发版
 
 ```bash
-git tag v0.1.4
-git push origin v0.1.4
+git tag v0.1.5
+git push origin v0.1.5
 ```
 
 自动发布：
 
 1. GitHub Release：多平台 `web-claude` 二进制  
-2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.4`
+2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.5`
