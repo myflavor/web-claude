@@ -1,0 +1,8 @@
+# Keep build context small — do not send happy/ monorepo or data into docker
+happy
+data
+.env
+.git
+*.md
+web/ui/node_modules
+web/static/assets

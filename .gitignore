@@ -1,0 +1,19 @@
+# runtime / secrets
+data/
+.env
+*.exe
+/claude-mobile
+/bin/
+
+# frontend
+web/ui/node_modules/
+web/ui/dist/
+
+# reference monorepo (not part of this product)
+happy/
+
+# editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

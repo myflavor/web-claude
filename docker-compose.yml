@@ -1,0 +1,35 @@
+services:
+  claude-mobile:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # Web UI login (not your Anthropic key)
+      AUTH_TOKEN: ${AUTH_TOKEN:-change-me-please}
+      LISTEN_ADDR: ":8080"
+      RUN_MODE: docker
+
+      PROJECTS_ROOT: /data/projects
+      # Isolated home inside container → ~/.claude lives here
+      CLAUDE_HOME: /data/home
+      HOME_DIR: /data/home
+
+      # Forward your custom API / model settings
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      ANTHROPIC_DEFAULT_SONNET_MODEL: ${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}
+
+      CLAUDE_ARGS: ${CLAUDE_ARGS:-}
+      IDLE_TTL_HOURS: ${IDLE_TTL_HOURS:-24}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      # Your code
+      - ${PROJECTS_HOST_PATH:-./data/projects}:/data/projects
+      # Claude config + sessions (settings.json, history, ...)
+      # Equivalent to mounting ~/.claude when you put settings under data/home/.claude
+      - ${CLAUDE_HOME_HOST_PATH:-${HOME_HOST_PATH:-./data/home}}:/data/home
+    restart: unless-stopped
