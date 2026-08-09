@@ -32,7 +32,7 @@ npm run build    # → web/static
 
 1. **程序本身不内置 Claude 配置逻辑**——尽量复用你本机 / 挂载进去的 `.claude`。
 2. **Docker 只是打包**：镜像 = Go 服务 + `claude` CLI + 基础工具。
-3. **Web 登录密码**（`AUTH_TOKEN`）和 **API Key** 分开。
+3. **Web 登录密码**（`WEB_CLAUDE_TOKEN`）和 **API Key** 分开。
 
 ```text
 WSL 独立运行:
@@ -61,9 +61,11 @@ cd claude-mobile
 (cd web/ui && npm install && npm run build)
 
 # 最小配置：只要 Web 登录密码
-export AUTH_TOKEN='你的网页密码'
-# 可选：限制可浏览的项目根（默认 ~/projects 或当前目录）
-export PROJECTS_ROOT="$HOME"
+export WEB_CLAUDE_TOKEN='你的网页密码'
+# 可选：监听端口（默认 8080）
+# export WEB_CLAUDE_PORT=7080
+# 可选：可浏览的项目根（默认用户家目录 ~）
+# export WEB_CLAUDE_ROOT="$HOME"
 # 不要设置 CLAUDE_HOME / HOME_DIR → 自动用真实用户 HOME 和 ~/.claude
 
 go run ./cmd/server
@@ -75,7 +77,7 @@ go build -o claude-mobile ./cmd/server && ./claude-mobile
 
 ```bash
 cp .env.example .env
-# 编辑 AUTH_TOKEN；API 相关若已在 shell/settings 里可省略
+# 编辑 WEB_CLAUDE_TOKEN / WEB_CLAUDE_PORT / WEB_CLAUDE_ROOT；API 相关若已在 shell/settings 里可省略
 ./claude-mobile
 ```
 
@@ -95,7 +97,7 @@ env 里的 `ANTHROPIC_*` 若设置了，会覆盖进子进程（便于临时改�
 
 ```bash
 cp .env.example .env
-# 必填: AUTH_TOKEN
+# 必填: WEB_CLAUDE_TOKEN（或 AUTH_TOKEN）
 # 填 API: ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_MODEL ...
 
 # 准备 Claude 配置（二选一）
@@ -149,8 +151,9 @@ API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings
 
 | 变量 | 独立运行 | Docker |
 |------|----------|--------|
-| `AUTH_TOKEN` | 网页密码 | 网页密码 |
-| `PROJECTS_ROOT` | 可浏览的代码根 | 容器内 `/data/projects` |
+| `WEB_CLAUDE_TOKEN` | 网页密码（首选） | 网页密码 |
+| `WEB_CLAUDE_ROOT` | 可浏览的代码根（默认 `~`） | 容器内 `/data/projects` |
+| `WEB_CLAUDE_PORT` | 监听端口（默认 `8080`） | compose 宿主映射端口 |
 | `CLAUDE_HOME` / `HOME_DIR` | **通常留空**（用真实 HOME） | `/data/home` |
 | `ANTHROPIC_*` | 可选（已有 settings/env 可省略） | 常用，注入自定义网关 |
 | `CLAUDE_BIN` | 默认 PATH 里的 `claude` | 镜像内 `claude` |
@@ -171,7 +174,7 @@ API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings
 
 ## 安全
 
-- 强 `AUTH_TOKEN`
+- 强 `WEB_CLAUDE_TOKEN`
 - 优先局域网 / Tailscale，勿裸奔公网
 - `.env` 勿提交 git
 
