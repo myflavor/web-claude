@@ -265,6 +265,14 @@ function switchHistory() {
   store.loadConversations().catch(() => {});
 }
 
+function goParent() {
+  store.goParent();
+}
+
+function enterDir(path) {
+  store.enterDir(path);
+}
+
 function convTitle(c) {
   return (c.display || "").trim() || "未命名对话";
 }
