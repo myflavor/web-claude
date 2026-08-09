@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const UploadDirName = ".claude-mobile-uploads"
+const UploadDirName = ".web-claude/uploads"
 
 type Info struct {
 	ID           string    `json:"id"`

@@ -168,7 +168,7 @@ API Key 建议用 compose `environment` / `.env` 注入，不必写进 `settings
 - 断网不杀进程；重连回放最近输出
 - 选目录启动 `claude`
 - xterm.js（PC + H5）
-- 上传文件 / 粘贴图片 → `{cwd}/.claude-mobile-uploads/`
+- 上传文件 / 粘贴图片 → `{cwd}/.web-claude/uploads/`
 
 ---
 
