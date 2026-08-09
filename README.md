@@ -37,7 +37,7 @@ export WEB_CLAUDE_TOKEN=password
 
 ```bash
 mkdir -p data
-# 按需编辑 Claude 配置（必须是文件，不要缺文件让 Docker 建成目录）
+# 必须是文件（缺文件时 Docker 会建成目录）
 cat > settings.json <<'JSON'
 {
   "permissions": {
@@ -45,6 +45,9 @@ cat > settings.json <<'JSON'
   }
 }
 JSON
+# 容器用户 uid=1000，避免权限问题可：
+# chown 1000:1000 settings.json
+# chmod 666 settings.json
 ```
 
 `docker-compose.yml`：
@@ -61,7 +64,7 @@ services:
       WEB_CLAUDE_ROOT: /data
     volumes:
       - ./data:/data
-      - ./settings.json:/root/.claude/settings.json
+      - ./settings.json:/home/claude/.claude/settings.json
     restart: unless-stopped
 ```
 
@@ -78,15 +81,19 @@ docker compose up -d
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
-| `./settings.json` | `/root/.claude/settings.json` | Claude 配置 |
+| `./settings.json` | `/home/claude/.claude/settings.json` | Claude 配置 |
 
-镜像内：
+镜像约定：
 
-- 以 **root** 运行，`HOME=/root`
-- Claude Code 配置目录：**`/root/.claude`**
-- 已带 **git** 与 **Claude Code**（`claude` 在 `/usr/local/bin/claude`）
+- **非 root** 运行：用户 `claude`（uid **1000**）
+- `HOME=/home/claude`
+- Claude 配置目录：**`/home/claude/.claude`**
+- `claude` 程序：`/usr/local/bin/claude`（构建时用 root 安装，再放到系统 PATH）
+- 预装：**git** + **Claude Code**
 
-`settings.json` 建议**不要**加 `:ro`（Claude 可能写入该文件）。  
+`settings.json` 建议不要加 `:ro`（Claude 可能写入）。  
+若出现权限问题，把宿主机文件属主改成 `1000:1000`，或 `chmod 666 settings.json`。
+
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 
 ---
@@ -106,11 +113,11 @@ Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `A
 ## 发版
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 自动发布：
 
 1. GitHub Release：多平台 `web-claude` 二进制  
-2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.0`
+2. 镜像：`ghcr.io/myflavor/web-claude:latest` / `:0.1.3`
