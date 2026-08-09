@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       bash \
       git \
+      util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # Official Claude Code installer → real binary on PATH.
@@ -60,9 +61,12 @@ RUN useradd -m -u 1000 -s /bin/bash claude \
 ENV HOME=/home/claude \
     WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
-    RUN_MODE=docker
+    RUN_MODE=docker \
+    PUID=1000 \
+    PGID=1000
 
-USER claude
+# entrypoint starts as root to apply PUID/PGID, then drops privileges
+USER root
 WORKDIR /data
 EXPOSE 3080
 

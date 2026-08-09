@@ -59,11 +59,17 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
+      # NAS 宿主机用户（id 命令查看），用于读写 ./data 与会话记录
+      PUID: 1002
+      PGID: 10
     volumes:
       - ./data:/data
       - ./settings.json:/settings.json:ro
     restart: unless-stopped
 ```
+
+`PUID`/`PGID` 请改成你 NAS 上的 `id` 结果（例如 `uid=1002 gid=10`）。  
+**不要**再写 `user: 1002:10`：由镜像入口用 PUID/PGID 切换，并保证 `~/.claude` 可写。
 
 启动：
 
@@ -94,6 +100,7 @@ docker compose up -d
 | `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填（Compose 示例为 `password`） |
 | `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 可浏览的项目根 | 二进制：用户家目录；Docker：`/data` |
+| `PUID` / `PGID` | Docker 内进程用户（对齐 NAS） | `1000` / `1000` |
 
 Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `ANTHROPIC_*` 环境变量）。
 
