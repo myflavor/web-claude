@@ -554,6 +554,14 @@ function ensureTerm() {
     if (vp) {
       vp.style.touchAction = "pan-y";
       vp.style.webkitOverflowScrolling = "touch";
+      vp.style.overscrollBehavior = "contain";
+    }
+    // The text layer steals vertical touch to "select/drag". Let vertical
+    // swipes be browser-scroll on the viewport so scrolling over text feels
+    // native; long-press selection still works (we don't preventDefault).
+    const screen = term.element?.querySelector(".xterm-screen");
+    if (screen) {
+      screen.style.touchAction = "pan-y";
     }
   } catch {
     /* ignore */
