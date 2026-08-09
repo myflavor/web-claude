@@ -45,7 +45,7 @@ cat > settings.json <<'JSON'
   }
 }
 JSON
-# 容器用户 uid=1000，避免权限问题可：
+# 容器用户 uid=1000，权限不对时可：
 # chown 1000:1000 settings.json
 # chmod 666 settings.json
 ```
@@ -64,7 +64,7 @@ services:
       WEB_CLAUDE_ROOT: /data
     volumes:
       - ./data:/data
-      - ./settings.json:/home/claude/.claude/settings.json
+      - ./settings.json:/home/sandbox/.claude/settings.json
     restart: unless-stopped
 ```
 
@@ -81,18 +81,17 @@ docker compose up -d
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
-| `./settings.json` | `/home/claude/.claude/settings.json` | Claude 配置 |
+| `./settings.json` | `/home/sandbox/.claude/settings.json` | Claude 配置 |
 
 镜像约定：
 
-- **非 root** 运行：用户 `claude`（uid **1000**）
-- `HOME=/home/claude`
-- Claude 配置目录：**`/home/claude/.claude`**
-- `claude` 程序：`/usr/local/bin/claude`（构建时用 root 安装，再放到系统 PATH）
+- **非 root**：用户 `sandbox`（uid **1000**）
+- `HOME=/home/sandbox`
+- Claude 配置目录：**`/home/sandbox/.claude`**
+- `claude` 程序：`/usr/local/bin/claude`
 - 预装：**git** + **Claude Code**
 
-`settings.json` 建议不要加 `:ro`（Claude 可能写入）。  
-若出现权限问题，把宿主机文件属主改成 `1000:1000`，或 `chmod 666 settings.json`。
+`settings.json` 建议不要加 `:ro`（Claude 可能写入）。
 
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 

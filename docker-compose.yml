@@ -9,5 +9,5 @@ services:
       WEB_CLAUDE_ROOT: /data
     volumes:
       - ./data:/data
-      - ./settings.json:/home/claude/.claude/settings.json
+      - ./settings.json:/home/sandbox/.claude/settings.json
     restart: unless-stopped

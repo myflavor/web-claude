@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/web-claude ./cmd/server
 
-# —— Runtime: Debian + git + Claude Code；进程以非 root 运行 ——
+# —— Runtime: Debian + git + Claude Code（非 root）——
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -36,8 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
     && rm -rf /var/lib/apt/lists/*
 
-# 构建阶段用 root 安装 Claude Code，把二进制放到系统 PATH。
-# 运行时用户是 claude，配置目录在 /home/claude/.claude（不是 /root/.claude）。
+# Build as root: install Claude Code binary onto system PATH.
+# Runtime user is sandbox; config lives under /home/sandbox/.claude.
 RUN set -eux; \
     curl -fsSL https://claude.ai/install.sh | bash; \
     CLAUDE_SRC=""; \
@@ -52,16 +52,16 @@ RUN set -eux; \
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
 
-RUN useradd -m -u 1000 -s /bin/bash claude \
-    && mkdir -p /data /home/claude/.claude \
-    && chown -R claude:claude /data /home/claude
+RUN useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
+    && mkdir -p /data /home/sandbox/.claude \
+    && chown -R sandbox:sandbox /data /home/sandbox
 
-ENV HOME=/home/claude \
+ENV HOME=/home/sandbox \
     WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
     RUN_MODE=docker
 
-USER claude
+USER sandbox
 WORKDIR /data
 EXPOSE 3080
 
