@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
     -o /out/web-claude ./cmd/server
 
-# —— Runtime: Debian + git + Claude Code only ——
+# —— Runtime: Debian + git + Claude Code (HOME=/root) ——
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,10 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       bash \
       git \
-      util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-# Official Claude Code installer → real binary on PATH.
+# Install Claude Code as root → config lives under /root/.claude by default.
+# Binary is placed on system PATH for all users.
 RUN set -eux; \
     curl -fsSL https://claude.ai/install.sh | bash; \
     CLAUDE_SRC=""; \
@@ -47,27 +47,18 @@ RUN set -eux; \
     if [ -z "$CLAUDE_SRC" ]; then CLAUDE_SRC="$(command -v claude)"; fi; \
     CLAUDE_REAL="$(readlink -f "$CLAUDE_SRC")"; \
     install -m 0755 "$CLAUDE_REAL" /usr/local/bin/claude; \
+    mkdir -p /root/.claude /data; \
     command -v claude; \
     claude --version
 
 COPY --from=builder /out/web-claude /usr/local/bin/web-claude
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-RUN useradd -m -u 1000 -s /bin/bash claude \
-    && mkdir -p /data /home/claude/.claude \
-    && chmod +x /usr/local/bin/entrypoint.sh \
-    && chown -R claude:claude /data /home/claude
-
-ENV HOME=/home/claude \
+ENV HOME=/root \
     WEB_CLAUDE_ROOT=/data \
     WEB_CLAUDE_PORT=3080 \
-    RUN_MODE=docker \
-    PUID=1000 \
-    PGID=1000
+    RUN_MODE=docker
 
-# entrypoint starts as root to apply PUID/PGID, then drops privileges
-USER root
 WORKDIR /data
 EXPOSE 3080
 
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["web-claude"]

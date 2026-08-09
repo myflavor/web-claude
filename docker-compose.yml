@@ -7,9 +7,7 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
-      PUID: 1002
-      PGID: 10
     volumes:
       - ./data:/data
-      - ./settings.json:/settings.json:ro
+      - ./settings.json:/root/.claude/settings.json
     restart: unless-stopped

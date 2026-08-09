@@ -37,7 +37,7 @@ export WEB_CLAUDE_TOKEN=password
 
 ```bash
 mkdir -p data
-# 按需编辑 Claude 配置
+# 按需编辑 Claude 配置（必须是文件，不要缺文件让 Docker 建成目录）
 cat > settings.json <<'JSON'
 {
   "permissions": {
@@ -59,17 +59,11 @@ services:
       WEB_CLAUDE_TOKEN: password
       WEB_CLAUDE_PORT: 3080
       WEB_CLAUDE_ROOT: /data
-      # NAS 宿主机用户（id 命令查看），用于读写 ./data 与会话记录
-      PUID: 1002
-      PGID: 10
     volumes:
       - ./data:/data
-      - ./settings.json:/settings.json:ro
+      - ./settings.json:/root/.claude/settings.json
     restart: unless-stopped
 ```
-
-`PUID`/`PGID` 请改成你 NAS 上的 `id` 结果（例如 `uid=1002 gid=10`）。  
-**不要**再写 `user: 1002:10`：由镜像入口用 PUID/PGID 切换，并保证 `~/.claude` 可写。
 
 启动：
 
@@ -84,11 +78,15 @@ docker compose up -d
 | 宿主机 | 容器 | 用途 |
 |--------|------|------|
 | `./data` | `/data` | 项目目录 |
-| `./settings.json` | `/settings.json`（启动时复制到 `~/.claude/settings.json`） | Claude 配置 |
+| `./settings.json` | `/root/.claude/settings.json` | Claude 配置 |
 
-镜像内已带 **git** 与 **Claude Code**。
+镜像内：
 
-`settings.json` 必须是**文件**（不要缺文件让 Docker 建成目录）。启动时会复制进容器用户目录，避免只读挂载导致 Claude 报无权限。  
+- 以 **root** 运行，`HOME=/root`
+- Claude Code 配置目录：**`/root/.claude`**
+- 已带 **git** 与 **Claude Code**（`claude` 在 `/usr/local/bin/claude`）
+
+`settings.json` 建议**不要**加 `:ro`（Claude 可能写入该文件）。  
 改密码：改 `WEB_CLAUDE_TOKEN`；改端口：同时改 `ports` 与 `WEB_CLAUDE_PORT`。
 
 ---
@@ -100,7 +98,6 @@ docker compose up -d
 | `WEB_CLAUDE_TOKEN` | 网页登录密码 | 必填（Compose 示例为 `password`） |
 | `WEB_CLAUDE_PORT` | 监听端口 | `3080` |
 | `WEB_CLAUDE_ROOT` | 可浏览的项目根 | 二进制：用户家目录；Docker：`/data` |
-| `PUID` / `PGID` | Docker 内进程用户（对齐 NAS） | `1000` / `1000` |
 
 Claude 的 API / 模型等仍走 Claude 自己的配置（`settings.json` 或 `ANTHROPIC_*` 环境变量）。
 
