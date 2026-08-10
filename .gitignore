@@ -1,7 +1,7 @@
 # runtime / secrets
 data/
-home/
 claude/
+home/
 .env
 settings.json
 *.exe
@@ -21,3 +21,11 @@ happy/
 *.swp
 .idea/
 .vscode/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk

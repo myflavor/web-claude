@@ -1,0 +1,5 @@
+# Future references
+# Terminal renderer candidates researched: xterm.js is weak on mobile touch;
+# native Android uses a Canvas-based ANSI renderer instead (non-WebView).
+# Avoid webview; libtermux/Termux TerminalView is Apache-2.0 and can be
+# vendored if needed. Compose Canvas + own char grid is lightweight.
