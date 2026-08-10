@@ -34,7 +34,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/home/sandbox/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl bash git gosu sudo passwd \
+      ca-certificates curl bash git openssh-client gosu sudo passwd \
     && useradd -m -u 1000 -d /home/sandbox -s /bin/bash sandbox \
     && mkdir -p /data /home/sandbox/.claude \
     && chown -R sandbox:sandbox /home/sandbox /data \
