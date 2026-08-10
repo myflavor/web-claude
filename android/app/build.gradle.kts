@@ -16,9 +16,20 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val ks = System.getenv("WEB_CLAUDE_KEYSTORE") ?: (System.getProperty("user.home") + "/.android/web-claude.keystore")
+            storeFile = file(ks)
+            storePassword = System.getenv("WEB_CLAUDE_KSPASS") ?: "webclaude123"
+            keyAlias = System.getenv("WEB_CLAUDE_KSALIAS") ?: "webclaude"
+            keyPassword = System.getenv("WEB_CLAUDE_KSPASS") ?: "webclaude123"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
