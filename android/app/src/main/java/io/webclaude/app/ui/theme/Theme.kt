@@ -1,30 +1,42 @@
 package io.webclaude.app.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF0A84FF),
-    background = Color(0xFF000000),
-    surface = Color(0xFF1C1C1E),
-    surfaceVariant = Color(0xFF2C2C2E),
-    onSurface = Color(0xFFFFFFFF),
-)
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF0A84FF),
-    background = Color(0xFFF2F2F7),
-    surface = Color(0xFFFFFFFF),
+// MIUIX / HyperOS-inspired palette (matches the Web UI).
+val BgPage = Color(0xFF0A0A0A)
+val BgSurface = Color(0xFF1C1C1E)
+val BgSurface2 = Color(0xFF2C2C2E)
+val BgSurface3 = Color(0xFF3A3A3C)
+val Separator = Color(0x8A545458)
+val PrimaryBlue = Color(0xFF0A84FF)
+val PrimaryPress = Color(0xFF409CFF)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color(0x99EBEBF5) // ~60%
+val TextTertiary = Color(0x66EBEBF5) // ~40%
+val DangerRed = Color(0xFFFF453A)
+
+private val MiuiDark = darkColorScheme(
+    primary = PrimaryBlue,
+    onPrimary = Color.White,
+    background = BgPage,
+    onBackground = TextPrimary,
+    surface = BgSurface,
+    onSurface = TextPrimary,
+    surfaceVariant = BgSurface2,
+    onSurfaceVariant = TextSecondary,
+    secondary = TextSecondary,
+    onSecondary = TextPrimary,
+    error = DangerRed,
+    onError = Color.White,
 )
 
 @Composable
 fun AppTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
     MaterialTheme(
-        colorScheme = if (dark) DarkColors else LightColors,
+        colorScheme = MiuiDark,
         content = content,
     )
 }
