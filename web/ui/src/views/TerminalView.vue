@@ -118,36 +118,6 @@ function ensureTerm() {
   term.loadAddon(new WebLinksAddon());
   termEl.value.innerHTML = "";
   term.open(termEl.value);
-  // Mobile: native-feeling vertical scroll over text.
-  try {
-    const vp = term.element?.querySelector(".xterm-viewport");
-    if (vp) {
-      vp.style.touchAction = "pan-y";
-      vp.style.webkitOverflowScrolling = "touch";
-      vp.style.overscrollBehavior = "contain";
-    }
-    const screen = term.element?.querySelector(".xterm-screen");
-    if (screen) {
-      screen.style.touchAction = "pan-y";
-    }
-  } catch {
-    /* ignore */
-  }
-
-  // xterm's own touchstart/touchmove handlers preventDefault and hand-roll
-  // scrollTop with no momentum, hijacking native scrolling. Intercept in the
-  // capture phase so browser scrolls .xterm-viewport natively (inertial).
-  try {
-    const host = termEl.value;
-    const blocker = (e) => {
-      e.stopImmediatePropagation();
-    };
-    host.addEventListener("touchstart", blocker, { capture: true, passive: true });
-    host.addEventListener("touchmove", blocker, { capture: true, passive: true });
-    host.addEventListener("touchcancel", blocker, { capture: true, passive: true });
-  } catch {
-    /* ignore */
-  }
 
   // Browser key path ≠ native TTY. Map common shortcuts browsers swallow.
   term.attachCustomKeyEventHandler((ev) => {
