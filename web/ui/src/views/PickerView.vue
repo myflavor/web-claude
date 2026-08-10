@@ -46,7 +46,7 @@
           type="button"
           role="tab"
           :aria-selected="pickerTab === 'dirs'"
-          @click="pickerTab = 'dirs'; loadConversations().catch(()=>{})"
+          @click="pickerTab = 'dirs'"
         >
           目录
         </button>
@@ -69,7 +69,7 @@
               v-if="pickerParent !== undefined && pickerPath"
               type="button"
               class="miui-cell"
-              @click="goParent"
+              @click="store.goParent"
             >
               <span class="cell-icon up">↑</span>
               <span class="cell-body">
@@ -82,7 +82,7 @@
               :key="e.path"
               type="button"
               class="miui-cell"
-              @click="enterDir(e.path)"
+              @click="store.enterDir(e.path)"
             >
               <span class="cell-icon">📁</span>
               <span class="cell-body">
@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { computed, inject, onMounted } from "vue";
+import { inject, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useMainStore } from "../store";
@@ -263,14 +263,6 @@ async function resume(c) {
 function switchHistory() {
   pickerTab.value = "history";
   store.loadConversations().catch(() => {});
-}
-
-function goParent() {
-  store.goParent();
-}
-
-function enterDir(path) {
-  store.enterDir(path);
 }
 
 function convTitle(c) {

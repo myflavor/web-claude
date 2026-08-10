@@ -13,4 +13,6 @@ services:
     volumes:
       - ./data:/data
       - ./claude:/home/sandbox/.claude
+      # SSH 密钥/known_hosts（git-over-SSH 用；放 ./ssh 下，私钥 600）
+      - ./ssh:/home/sandbox/.ssh
     restart: unless-stopped

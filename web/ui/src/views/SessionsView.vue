@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { computed, inject, onMounted } from "vue";
+import { inject, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useMainStore } from "../store";

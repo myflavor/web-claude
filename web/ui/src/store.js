@@ -55,7 +55,7 @@ export const useMainStore = defineStore("main", () => {
     pickerPath.value = data.path || "";
     pickerParent.value = data.parent;
     pickerDirs.value = (data.entries || []).filter((e) => e.isDir);
-    loadConversations().catch(() => {});
+    // History is fetched lazily on the History tab; don't scan it on dir nav.
   }
 
   function goParent() {

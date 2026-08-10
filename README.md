@@ -50,6 +50,7 @@ services:
     volumes:
       - ./data:/data
       - ./claude:/home/sandbox/.claude
+      - ./ssh:/home/sandbox/.ssh   # git-over-SSH 密钥
     restart: unless-stopped
 ```
 
@@ -62,6 +63,17 @@ docker compose up -d
 |--------|------|
 | `./data` | `/data` |
 | `./claude` | `/home/sandbox/.claude` |
+| `./ssh` | `/home/sandbox/.ssh`（私钥 600；可放 known_hosts） |
+
+### SSH 拉取仓库
+
+```bash
+mkdir -p ssh
+# 把你的 id_ed25519 / id_ed25519.pub 放进 ./ssh/
+chmod 600 ssh/id_ed25519
+```
+
+Web 里 `Git Clone` 填 `git@github.com:user/repo.git` 即走 SSH。
 
 NAS：`PUID`/`PGID` 填 `ls -ln` 的属主。
 
@@ -84,5 +96,5 @@ NAS：`PUID`/`PGID` 填 `ls -ln` 的属主。
 
 ```bash
 docker build -t web-claude:local .
-git tag v0.1.18 && git push origin v0.1.18
+git tag v0.1.28 && git push origin v0.1.28
 ```

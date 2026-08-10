@@ -163,9 +163,15 @@ function fitAndResize() {
   sendResize();
 }
 
+let lastSentCols = 0;
+let lastSentRows = 0;
+
 function sendResize() {
   if (!ws || ws.readyState !== WebSocket.OPEN || !term) return;
   if (!term.cols || !term.rows) return;
+  if (term.cols === lastSentCols && term.rows === lastSentRows) return;
+  lastSentCols = term.cols;
+  lastSentRows = term.rows;
   ws.send(
     JSON.stringify({
       type: "resize",
