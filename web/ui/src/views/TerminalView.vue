@@ -163,6 +163,9 @@ function fitAndResize() {
   sendResize();
 }
 
+// Dirty-check sends: update lastSent only AFTER the frame is actually
+// handed to the socket, so a resize lost on a dead socket gets resent on
+// reconnect instead of being skipped as "already sent".
 let lastSentCols = 0;
 let lastSentRows = 0;
 
@@ -170,15 +173,18 @@ function sendResize() {
   if (!ws || ws.readyState !== WebSocket.OPEN || !term) return;
   if (!term.cols || !term.rows) return;
   if (term.cols === lastSentCols && term.rows === lastSentRows) return;
-  lastSentCols = term.cols;
-  lastSentRows = term.rows;
-  ws.send(
-    JSON.stringify({
-      type: "resize",
-      cols: term.cols,
-      rows: term.rows,
-    })
-  );
+  const frame = JSON.stringify({
+    type: "resize",
+    cols: term.cols,
+    rows: term.rows,
+  });
+  try {
+    ws.send(frame);
+    lastSentCols = term.cols;
+    lastSentRows = term.rows;
+  } catch {
+    /* buffered/send failed; leave lastSent stale so we retry next fit */
+  }
 }
 
 function connectWS(sid) {
