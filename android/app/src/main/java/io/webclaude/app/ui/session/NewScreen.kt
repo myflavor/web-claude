@@ -44,7 +44,7 @@ import io.webclaude.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
 @Composable
-fun NewScreen(nav: NavHostController, client: SessionClient, wsHolder: Any?) {
+fun NewScreen(nav: NavHostController, client: SessionClient) {
     var path by remember { mutableStateOf("") }
     var parent by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf<List<FsEntry>>(emptyList()) }

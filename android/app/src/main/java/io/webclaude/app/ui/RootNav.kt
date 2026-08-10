@@ -40,7 +40,7 @@ fun RootNav() {
             SessionsScreen(nav = nav, client = client)
         }
         composable(Routes.NEW) {
-            NewScreen(nav = nav, client = client, wsHolder = wsHolder)
+            NewScreen(nav = nav, client = client)
         }
         composable(
             Routes.TERM,
@@ -51,6 +51,7 @@ fun RootNav() {
                 id = it.arguments?.getString("id") ?: "",
                 sessionId = sessionId,
                 wsHolder = wsHolder,
+                client = client,
             )
         }
     }

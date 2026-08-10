@@ -37,7 +37,6 @@ import io.webclaude.app.ui.theme.BgSurface2
 import io.webclaude.app.ui.theme.MiuiTopBar
 import io.webclaude.app.ui.theme.PrimaryBlue
 import io.webclaude.app.ui.theme.TextPrimary
-import io.webclaude.app.ui.theme.TextSecondary
 
 @Composable
 fun TerminalScreen(
@@ -45,12 +44,12 @@ fun TerminalScreen(
     id: String,
     sessionId: androidx.compose.runtime.MutableState<String?>,
     wsHolder: WsClient,
+    client: SessionClient,
 ) {
     val session = remember { TerminalSession() }
     var status by remember { mutableStateOf("连接中…") }
     var ws by remember { mutableStateOf<WsClient?>(null) }
     var input by remember { mutableStateOf("") }
-    val client = remember { SessionClient() }
 
     LaunchedEffect(id) {
         sessionId.value = id
