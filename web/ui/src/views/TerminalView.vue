@@ -326,33 +326,6 @@ async function onUpload(e) {
   }
 }
 
-async function onPaste(e) {
-  if (!sessionId.value) return;
-  const items = e.clipboardData && e.clipboardData.items;
-  if (!items) return;
-  for (const item of items) {
-    if (item.type && item.type.startsWith("image/")) {
-      e.preventDefault();
-      const file = item.getAsFile();
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file, `paste-${Date.now()}.png`);
-      termStatus.value = "正在上传图片…";
-      try {
-        const res = await api(`/api/sessions/${sessionId.value}/upload`, {
-          method: "POST",
-          body: fd,
-        });
-        termStatus.value = `图片已上传：${res.path}`;
-      } catch (err) {
-        if (err.status === 401) return;
-        termStatus.value = `图片上传失败：${err.message}`;
-      }
-      return;
-    }
-  }
-}
-
 function onWinResize() {
   fitAndResize();
 }
@@ -360,12 +333,10 @@ function onWinResize() {
 onMounted(() => {
   open();
   window.addEventListener("resize", onWinResize);
-  document.addEventListener("paste", onPaste);
 });
 
 onUnmounted(() => {
   window.removeEventListener("resize", onWinResize);
-  document.removeEventListener("paste", onPaste);
   shouldReconnect = false;
   clearTimeout(reconnectTimer);
   unloadWs();
